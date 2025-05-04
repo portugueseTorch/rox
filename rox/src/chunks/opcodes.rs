@@ -1,14 +1,19 @@
 use std::fmt::Display;
 
-#[derive(Copy, Clone, Debug)]
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
 pub enum OpCode {
     Return,
+    Constant,
 }
 
 impl Display for OpCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_data: &str = match self {
             OpCode::Return => "Return",
+            OpCode::Constant => "Constant",
         };
         write!(f, "{}", display_data)
     }

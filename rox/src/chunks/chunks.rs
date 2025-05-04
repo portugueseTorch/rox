@@ -1,23 +1,71 @@
-use super::opcodes::OpCode;
+use super::{opcodes::OpCode, value::Value};
 
 pub struct Chunk {
-    code: Vec<OpCode>,
+    /// bytecode instruction - defined as a general byte array to allow instructions to have
+    /// operands (e.g., constants). Although more laborious this approach is prefered over having
+    /// OpCodes hold inner values in favor of less memory expenditure
+    code: Vec<u8>,
+    constants: Vec<Value>,
 }
 
 impl Chunk {
     pub fn new() -> Self {
-        Self { code: vec![] }
+        Self {
+            code: vec![],
+            constants: vec![],
+        }
     }
 
-    pub fn write(&mut self, op: OpCode) {
-        self.code.push(op)
+    pub fn write<T>(&mut self, byte: T)
+    where
+        T: Into<u8>,
+    {
+        self.code.push(byte.into())
+    }
+
+    pub fn write_constant(&mut self, value: Value) {
+        // --- write value to the constants pool
+        let idx = self.write_constant_aux(value);
+        self.write(OpCode::Constant);
+        self.write(idx);
+    }
+
+    // TODO: having this return a u8 means that the amount of constants we can store is inherently
+    // capped at 256. Probably fine for now, but can always be extended in the future
+    fn write_constant_aux(&mut self, value: Value) -> u8 {
+        self.constants.push(value);
+        (self.constants.len() - 1) as u8
     }
 
     pub fn disassemble(&self, name: &str) {
         println!("--- {} ---", name);
-        self.code
-            .iter()
-            .enumerate()
-            .for_each(|(idx, op)| println!("0x{number:0>6}: {op_code}", number = idx, op_code = op))
+        let mut i = 0;
+        let mut op_number = 0;
+        while i < self.code.len() {
+            op_number += 1;
+            let raw_byte = self.code[i];
+            let op: OpCode = raw_byte.try_into().expect("invalid opcode");
+            i += 1;
+
+            let op_data: Option<String> = match op {
+                OpCode::Return => None,
+                OpCode::Constant => {
+                    let operand_index = self.code.get(i).expect("missing operand for constant");
+                    i += 1;
+                    let operand = self
+                        .constants
+                        .get(*operand_index as usize)
+                        .expect("invalid idx for constant data");
+                    Some(operand.to_string())
+                }
+            };
+
+            println!(
+                "0x{:0>6}: {}{}",
+                op_number,
+                op.to_string(),
+                op_data.map_or(String::new(), |s| format!("({})", s))
+            );
+        }
     }
 }

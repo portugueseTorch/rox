@@ -6,6 +6,7 @@ pub struct Chunk {
     /// OpCodes hold inner values in favor of less memory expenditure
     code: Vec<u8>,
     constants: Vec<Value>,
+    line_info: Vec<LineInfo>,
 }
 
 impl Chunk {
@@ -13,7 +14,16 @@ impl Chunk {
         Self {
             code: vec![],
             constants: vec![],
+            line_info: vec![],
         }
+    }
+
+    pub fn new_line(&mut self, offset: usize) {
+        let current_line = self.line_info.last().map_or(0, |l| l.line);
+        self.line_info.push(LineInfo {
+            line: current_line + 1,
+            op_offset: offset,
+        })
     }
 
     pub fn write<T>(&mut self, byte: T)
@@ -68,4 +78,12 @@ impl Chunk {
             );
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LineInfo {
+    /// offset into Chunk::code
+    op_offset: usize,
+    /// line number of the operation at op_offset
+    line: usize,
 }

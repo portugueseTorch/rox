@@ -1,3 +1,5 @@
+use std::intrinsics::offset;
+
 use super::{opcodes::OpCode, value::Value};
 
 pub struct Chunk {
@@ -82,26 +84,22 @@ impl Chunk {
         }
     }
 
-    fn get_line_info_from_offset(&self, offset: usize) -> Option<&LineInfo> {
+    fn get_line_info_from_offset(&self, offset: usize) -> &LineInfo {
         let mut low = 0;
         let mut high = self.code.len();
 
         while low < high {
             let mid = low + (high - low) / 2;
-            let item_at_mid = self.line_info.get(mid).expect("m should be a valid index");
-
-            if item_at_mid.op_offset > offset {
-                high = mid;
-            } else {
+            if self.line_info[mid].op_offset <= offset {
                 low = mid + 1;
+            } else {
+                high = mid
             }
         }
 
-        if low == 0 {
-            None
-        } else {
-            self.line_info.get(low - 1)
-        }
+        self.line_info
+            .get(low - 1)
+            .expect("should always provide a valid line")
     }
 }
 

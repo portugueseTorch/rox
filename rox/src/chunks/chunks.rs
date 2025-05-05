@@ -14,7 +14,10 @@ impl Chunk {
         Self {
             code: vec![],
             constants: vec![],
-            line_info: vec![],
+            line_info: vec![LineInfo {
+                op_offset: 0,
+                line: 1,
+            }],
         }
     }
 
@@ -76,6 +79,28 @@ impl Chunk {
                 op.to_string(),
                 op_data.map_or(String::new(), |s| format!("({})", s))
             );
+        }
+    }
+
+    fn get_line_info_from_offset(&self, offset: usize) -> Option<&LineInfo> {
+        let mut low = 0;
+        let mut high = self.code.len();
+
+        while low < high {
+            let mid = low + (high - low) / 2;
+            let item_at_mid = self.line_info.get(mid).expect("m should be a valid index");
+
+            if item_at_mid.op_offset > offset {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        if low == 0 {
+            None
+        } else {
+            self.line_info.get(low - 1)
         }
     }
 }

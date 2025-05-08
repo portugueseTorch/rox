@@ -1,4 +1,4 @@
-use std::intrinsics::offset;
+use crate::bitwise;
 
 use super::{opcodes::OpCode, value::Value};
 
@@ -38,55 +38,98 @@ impl Chunk {
         self.code.push(byte.into())
     }
 
+    fn write_24b(&mut self, val: u32) {
+        let (b4, b3, b2, b1) = bitwise::get_bytes(val);
+        assert_eq!(
+            b4, 0,
+            "attempting to write a value of more than 24bits into constants"
+        );
+
+        self.write(b3);
+        self.write(b2);
+        self.write(b1);
+    }
+
     pub fn write_constant(&mut self, value: Value) {
         // --- write value to the constants pool
         let idx = self.write_constant_aux(value);
-        self.write(OpCode::Constant);
-        self.write(idx);
+
+        // --- if the returned index is lower than 256, write Constant instruction
+        // otherwise we need to write a ConstantLong and store the index as a 32-bit number
+        match u8::try_from(idx) {
+            Ok(idx_as_u8) => {
+                self.write(OpCode::Constant);
+                self.write(idx_as_u8);
+            }
+            Err(_) => {
+                self.write(OpCode::ConstantLong);
+            }
+        }
     }
 
-    // TODO: having this return a u8 means that the amount of constants we can store is inherently
-    // capped at 256. Probably fine for now, but can always be extended in the future
-    fn write_constant_aux(&mut self, value: Value) -> u8 {
+    /// pushes value into constant and returns the index into which it was pushed
+    fn write_constant_aux(&mut self, value: Value) -> u32 {
         self.constants.push(value);
-        (self.constants.len() - 1) as u8
+        (self.constants.len() - 1) as u32
     }
 
     pub fn disassemble(&self, name: &str) {
         println!("--- {} ---", name);
+        println!("offset    line\top");
         let mut i = 0;
-        let mut op_number = 0;
         while i < self.code.len() {
-            op_number += 1;
             let raw_byte = self.code[i];
             let op: OpCode = raw_byte.try_into().expect("invalid opcode");
+            let op_idx = i;
+            let line_info = self.get_line_info_from_offset(op_idx);
             i += 1;
 
             let op_data: Option<String> = match op {
                 OpCode::Return => None,
                 OpCode::Constant => {
-                    let operand_index = self.code.get(i).expect("missing operand for constant");
+                    let operand_idx = self
+                        .code
+                        .get(i)
+                        .expect("missing operand index for constant");
                     i += 1;
                     let operand = self
                         .constants
-                        .get(*operand_index as usize)
+                        .get(*operand_idx as usize)
                         .expect("invalid idx for constant data");
+                    Some(operand.to_string())
+                }
+                OpCode::ConstantLong => {
+                    // --- the index of the operand will be the next 24 bits
+                    let idx_as_bytes = self
+                        .code
+                        .get(i..=i + 2)
+                        .expect("missing operand index for long constant");
+                    let operand_idx = bitwise::u32_from_bytes(
+                        idx_as_bytes
+                            .try_into()
+                            .expect("should be an array of 3 bytes"),
+                    );
+                    let operand = self
+                        .constants
+                        .get(operand_idx as usize)
+                        .expect("invalid idx for long constant data");
                     Some(operand.to_string())
                 }
             };
 
             println!(
-                "0x{:0>6}: {}{}",
-                op_number,
+                "0x{:0>6} {:>5}\t{}{}",
+                op_idx,
+                line_info.line,
                 op.to_string(),
-                op_data.map_or(String::new(), |s| format!("({})", s))
+                op_data.map_or(String::new(), |s| format!(" ({})", s))
             );
         }
     }
 
     fn get_line_info_from_offset(&self, offset: usize) -> &LineInfo {
         let mut low = 0;
-        let mut high = self.code.len();
+        let mut high = self.line_info.len();
 
         while low < high {
             let mid = low + (high - low) / 2;

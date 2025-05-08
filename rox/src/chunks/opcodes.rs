@@ -7,13 +7,15 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 pub enum OpCode {
     Return,
     Constant,
+    ConstantLong,
 }
 
 impl Display for OpCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_data: &str = match self {
-            OpCode::Return => "Return",
-            OpCode::Constant => "Constant",
+            OpCode::Return => "RET",
+            OpCode::Constant => "CONST",
+            OpCode::ConstantLong => "CONST_LONG",
         };
         write!(f, "{}", display_data)
     }

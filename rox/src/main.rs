@@ -1,5 +1,6 @@
 use chunks::{opcodes::OpCode, value::Value, Chunk};
 
+mod bitwise;
 mod chunks;
 
 fn main() {

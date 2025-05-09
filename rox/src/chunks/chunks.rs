@@ -6,9 +6,9 @@ pub struct Chunk {
     /// bytecode instruction - defined as a general byte array to allow instructions to have
     /// operands (e.g., constants). Although more laborious this approach is prefered over having
     /// OpCodes hold inner values in favor of less memory expenditure
-    code: Vec<u8>,
-    constants: Vec<Value>,
-    line_info: Vec<LineInfo>,
+    pub code: Vec<u8>,
+    pub constants: Vec<Value>,
+    pub line_info: Vec<LineInfo>,
 }
 
 impl Chunk {
@@ -78,53 +78,58 @@ impl Chunk {
         println!("offset    line\top");
         let mut i = 0;
         while i < self.code.len() {
-            let raw_byte = self.code[i];
-            let op: OpCode = raw_byte.try_into().expect("invalid opcode");
-            let op_idx = i;
-            let line_info = self.get_line_info_from_offset(op_idx);
-            i += 1;
-
-            let op_data: Option<String> = match op {
-                OpCode::Return => None,
-                OpCode::Constant => {
-                    let operand_idx = self
-                        .code
-                        .get(i)
-                        .expect("missing operand index for constant");
-                    i += 1;
-                    let operand = self
-                        .constants
-                        .get(*operand_idx as usize)
-                        .expect("invalid idx for constant data");
-                    Some(operand.to_string())
-                }
-                OpCode::ConstantLong => {
-                    // --- the index of the operand will be the next 24 bits
-                    let idx_as_bytes = self
-                        .code
-                        .get(i..=i + 2)
-                        .expect("missing operand index for long constant");
-                    let operand_idx = bitwise::u32_from_bytes(
-                        idx_as_bytes
-                            .try_into()
-                            .expect("should be an array of 3 bytes"),
-                    );
-                    let operand = self
-                        .constants
-                        .get(operand_idx as usize)
-                        .expect("invalid idx for long constant data");
-                    Some(operand.to_string())
-                }
-            };
-
-            println!(
-                "0x{:0>6} {:>5}\t{}{}",
-                op_idx,
-                line_info.line,
-                op.to_string(),
-                op_data.map_or(String::new(), |s| format!(" ({})", s))
-            );
+            self.disassembleInstruction(&mut i)
         }
+    }
+
+    pub fn disassembleInstruction(&self, idx: &mut usize) {
+        let raw_byte = self.code[*idx];
+        let op: OpCode = raw_byte.try_into().expect("invalid opcode");
+        let op_idx = *idx;
+        let line_info = self.get_line_info_from_offset(op_idx);
+        *idx += 1;
+
+        let op_data: Option<String> = match op {
+            OpCode::Return => None,
+            OpCode::Constant => {
+                let operand_idx = self
+                    .code
+                    .get(*idx)
+                    .expect("missing operand index for constant");
+                *idx += 1;
+                let operand = self
+                    .constants
+                    .get(*operand_idx as usize)
+                    .expect("invalid idx for constant data");
+                Some(operand.to_string())
+            }
+            OpCode::ConstantLong => {
+                // --- the index of the operand will be the next 24 bits
+                let idx_as_bytes = self
+                    .code
+                    .get(*idx..=*idx + 2)
+                    .expect("missing operand index for long constant");
+                let operand_idx = bitwise::u32_from_bytes(
+                    idx_as_bytes
+                        .try_into()
+                        .expect("should be an array of 3 bytes"),
+                );
+                let operand = self
+                    .constants
+                    .get(operand_idx as usize)
+                    .expect("invalid idx for long constant data");
+
+                Some(operand.to_string())
+            }
+        };
+
+        println!(
+            "0x{:0>6} {:>5}\t{}{}",
+            op_idx,
+            line_info.line,
+            op.to_string(),
+            op_data.map_or(String::new(), |s| format!(" ({})", s))
+        );
     }
 
     fn get_line_info_from_offset(&self, offset: usize) -> &LineInfo {

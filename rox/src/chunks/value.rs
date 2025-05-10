@@ -2,7 +2,7 @@ use core::fmt;
 
 use ordered_float::OrderedFloat;
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum Value {
     Number(OrderedFloat<f64>),
     Literal(&'static str),

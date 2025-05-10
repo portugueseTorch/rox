@@ -62,6 +62,23 @@ impl Stack {
         self.top = self.stack.as_mut_ptr();
     }
 
+    pub fn trace(&self) {
+        print!("  stack:\t[");
+        let mut iter = self.stack.as_ptr();
+        let start = self.stack.as_ptr();
+
+        while iter < self.top {
+            let is_last = unsafe { iter.offset(1) } == self.top;
+            print!("{}", unsafe { &*iter });
+            if !is_last {
+                print!(", ")
+            }
+
+            iter = unsafe { iter.offset(1) };
+        }
+        print!("]\n");
+    }
+
     fn top_offset(&mut self) -> usize {
         unsafe {
             self.top

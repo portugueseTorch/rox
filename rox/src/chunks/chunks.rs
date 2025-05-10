@@ -4,15 +4,16 @@ use super::{opcodes::OpCode, value::Value};
 
 /// Advances ip to the next instruction to process
 #[macro_export]
-macro_rules! ip_advance {
+macro_rules! offset_ip {
     ($ip:expr) => {
         $ip = $ip.add(1);
     };
     ($ip:expr, $offset:expr) => {
-        $ip = $ip.add($offset);
+        $ip = $ip.add($offset)
     };
 }
 
+#[derive(Debug, Clone)]
 pub struct Chunk {
     /// bytecode instruction - defined as a general byte array to allow instructions to have
     /// operands (e.g., constants). Although more laborious this approach is prefered over having

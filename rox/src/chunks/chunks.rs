@@ -85,6 +85,8 @@ impl Chunk {
         (self.constants.len() - 1) as u32
     }
 
+    /// self contained disassembler for a chunk - it is pure and can be used to log the generated
+    /// bytecode of the current chunk
     pub fn disassemble(&self, name: &str) {
         println!("--- {} ---", name);
         println!("offset    line\top");
@@ -95,6 +97,8 @@ impl Chunk {
         }
     }
 
+    /// self contained instruction disassembler - it is pure and returns the index of the next operation to be
+    /// executed.
     pub fn disassembleInstruction(&self, mut idx: usize) -> usize {
         let raw_byte = self.code.get(idx).unwrap();
         let op = OpCode::try_from(*raw_byte).unwrap();

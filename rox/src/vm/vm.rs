@@ -1,8 +1,6 @@
 use crate::chunks::{opcodes::OpCode, Chunk};
 use crate::{ip_advance, ptr_offset};
 
-pub struct VM;
-
 macro_rules! debug {
     ($chunk:expr, $idx:expr) => {{
         #[cfg(feature = "debug")]
@@ -10,6 +8,7 @@ macro_rules! debug {
     }};
 }
 
+pub struct VM;
 impl VM {
     pub fn new() -> Self {
         Self

@@ -4,9 +4,9 @@ use crate::{ip_advance, ptr_offset};
 
 use super::stack::Stack;
 
-macro_rules! debug {
+macro_rules! trace {
     ($chunk:expr, $idx:expr) => {{
-        #[cfg(feature = "debug")]
+        #[cfg(feature = "trace")]
         $chunk.disassembleInstruction($idx);
     }};
 }
@@ -27,7 +27,7 @@ impl VM {
 
         unsafe {
             while ip < start.add(chunk.code.len()) {
-                debug!(chunk, ptr_offset!(start, ip));
+                trace!(chunk, ptr_offset!(start, ip));
 
                 let op_code = *ip;
                 ip_advance!(ip);

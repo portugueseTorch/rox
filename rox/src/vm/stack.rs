@@ -5,8 +5,10 @@ use crate::chunks::value::Value;
 const STACK_SIZE: usize = 4096;
 
 pub struct Stack {
-    pub stack: Box<[Value; STACK_SIZE]>,
-    pub top: *mut Value,
+    stack: Box<[Value; STACK_SIZE]>,
+    /// Pointer to the next chunk of memory in stack where the next item can be inserted
+    /// If the stack is at capacity, the pointer will be pointing to invalid memory
+    top: *mut Value,
 }
 
 impl Stack {
@@ -21,6 +23,8 @@ impl Stack {
         self.top_offset()
     }
 
+    /// Attempts to push v onto the stack. If the stack size has been reach, push panics
+    /// Internally, the pointer to the top of the stack is updated
     pub fn push(&mut self, v: Value) {
         // --- assert that there is still enough space in the stack
         assert!(
@@ -36,6 +40,8 @@ impl Stack {
         }
     }
 
+    /// Pops the top-most value of the stack or None if the stack is empty
+    /// Internally it iterates the pointer to the top of the stack.
     pub fn pop(&mut self) -> Option<Value> {
         // --- check if the stack is empty
         if self.top_offset() <= 0 {

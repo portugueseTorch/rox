@@ -1,6 +1,17 @@
-use crate::bitwise;
+use crate::{bitwise, ptr_offset};
 
 use super::{opcodes::OpCode, value::Value};
+
+/// Advances ip to the next instruction to process
+#[macro_export]
+macro_rules! ip_advance {
+    ($ip:expr) => {
+        $ip = $ip.add(1);
+    };
+    ($ip:expr, $offset:expr) => {
+        $ip = $ip.add($offset);
+    };
+}
 
 pub struct Chunk {
     /// bytecode instruction - defined as a general byte array to allow instructions to have
@@ -63,6 +74,7 @@ impl Chunk {
             }
             Err(_) => {
                 self.write(OpCode::ConstantLong);
+                self.write_24b(idx);
             }
         }
     }
@@ -77,26 +89,24 @@ impl Chunk {
         println!("--- {} ---", name);
         println!("offset    line\top");
         let mut i = 0;
+
         while i < self.code.len() {
-            self.disassembleInstruction(&mut i)
+            i = self.disassembleInstruction(i);
         }
     }
 
-    pub fn disassembleInstruction(&self, idx: &mut usize) {
-        let raw_byte = self.code[*idx];
-        let op: OpCode = raw_byte.try_into().expect("invalid opcode");
-        let op_idx = *idx;
-        let line_info = self.get_line_info_from_offset(op_idx);
-        *idx += 1;
+    pub fn disassembleInstruction(&self, mut idx: usize) -> usize {
+        let raw_byte = self.code.get(idx).unwrap();
+        let op = OpCode::try_from(*raw_byte).unwrap();
+        let op_idx = idx;
+        let line_info = self.get_line_info_from_offset(idx);
+        idx += 1;
 
         let op_data: Option<String> = match op {
             OpCode::Return => None,
             OpCode::Constant => {
-                let operand_idx = self
-                    .code
-                    .get(*idx)
-                    .expect("missing operand index for constant");
-                *idx += 1;
+                let operand_idx = self.code.get(idx).unwrap();
+                idx += 1;
                 let operand = self
                     .constants
                     .get(*operand_idx as usize)
@@ -107,8 +117,8 @@ impl Chunk {
                 // --- the index of the operand will be the next 24 bits
                 let idx_as_bytes = self
                     .code
-                    .get(*idx..=*idx + 2)
-                    .expect("missing operand index for long constant");
+                    .get(idx..=idx + 2)
+                    .expect("missing constant index for long constant");
                 let operand_idx = bitwise::u32_from_bytes(
                     idx_as_bytes
                         .try_into()
@@ -130,6 +140,8 @@ impl Chunk {
             op.to_string(),
             op_data.map_or(String::new(), |s| format!(" ({})", s))
         );
+
+        idx
     }
 
     fn get_line_info_from_offset(&self, offset: usize) -> &LineInfo {

@@ -1,5 +1,8 @@
+use crate::chunks::value::Value;
 use crate::chunks::{opcodes::OpCode, Chunk};
 use crate::{ip_advance, ptr_offset};
+
+use super::stack::Stack;
 
 macro_rules! debug {
     ($chunk:expr, $idx:expr) => {{
@@ -8,10 +11,14 @@ macro_rules! debug {
     }};
 }
 
-pub struct VM;
+pub struct VM {
+    pub stack: Stack,
+}
 impl VM {
     pub fn new() -> Self {
-        Self
+        Self {
+            stack: Stack::new(),
+        }
     }
 
     pub fn interpret(&self, chunk: &Chunk) -> VMResult {

@@ -2,7 +2,7 @@ use std::{array, ptr};
 
 use crate::chunks::value::Value;
 
-const STACK_SIZE: usize = 10;
+const STACK_SIZE: usize = 4096;
 
 pub struct Stack {
     pub stack: Box<[Value; STACK_SIZE]>,
@@ -42,12 +42,12 @@ impl Stack {
             return None;
         }
 
+        // --- move pointer back and move the item out of memory - we always want top to point to
+        // the next valid position in the stack
         let value = unsafe {
-            let top = self.top.offset(-1);
-            ptr::read(top)
+            self.top = self.top.offset(-1);
+            ptr::read(self.top)
         };
-
-        unsafe { self.top = self.top.offset(-1) };
 
         Some(value)
     }
@@ -58,7 +58,8 @@ impl Stack {
 
     fn top_offset(&mut self) -> usize {
         unsafe {
-            dbg!(self.top.offset_from(self.stack.as_mut_ptr()))
+            self.top
+                .offset_from(self.stack.as_mut_ptr())
                 .try_into()
                 .unwrap()
         }

@@ -48,15 +48,7 @@ impl VM {
 
                         return VMResult::Ok;
                     }
-                    OpCode::Constant => {
-                        let (constant, offset) = self
-                            .read_constant(op_code, ip)
-                            .expect("Should have a constant");
-                        offset_ip!(ip, offset);
-
-                        self.stack.push(constant.clone())
-                    }
-                    OpCode::ConstantLong => {
+                    OpCode::Constant | OpCode::ConstantLong => {
                         let (constant, offset) = self
                             .read_constant(op_code, ip)
                             .expect("Should have a constant");
@@ -72,7 +64,7 @@ impl VM {
     }
 
     #[inline]
-    fn read_constant(&self, op_code: OpCode, mut ip: *const u8) -> anyhow::Result<(&Value, usize)> {
+    fn read_constant(&self, op_code: OpCode, ip: *const u8) -> anyhow::Result<(&Value, usize)> {
         let (const_idx, offset) = match op_code {
             OpCode::Constant => (unsafe { *ip as usize }, 1),
             OpCode::ConstantLong => {

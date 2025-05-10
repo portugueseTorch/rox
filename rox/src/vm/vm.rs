@@ -56,6 +56,12 @@ impl VM {
 
                         self.stack.push(constant.clone())
                     }
+                    OpCode::Negate => {
+                        match self.stack.pop() {
+                            Some(Value::Number(n)) => self.stack.push(Value::Number(-n)),
+                            _ => return VMResult::RuntimeError,
+                        };
+                    }
                 }
             }
         }
@@ -81,8 +87,33 @@ impl VM {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum VMResult {
     Ok,
     CompileError,
     RuntimeError,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn negation_without_value() {
+        let mut chunk = Chunk::new();
+        chunk.write(OpCode::Negate);
+        let mut vm = VM::new(chunk);
+        assert_eq!(vm.run(), VMResult::RuntimeError);
+    }
+
+    #[test]
+    fn negation_with_value() {
+        let mut chunk = Chunk::new();
+        chunk.write_constant(Value::Number(ordered_float::OrderedFloat(42.0)));
+        chunk.write(OpCode::Negate);
+        chunk.write(OpCode::Return);
+
+        let mut vm = VM::new(chunk);
+        assert_eq!(vm.run(), VMResult::Ok);
+    }
 }

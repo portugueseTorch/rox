@@ -6,8 +6,11 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[repr(u8)]
 pub enum OpCode {
     Return,
+    //
     Constant,
     ConstantLong,
+    //
+    Negate,
 }
 
 impl Display for OpCode {
@@ -16,6 +19,7 @@ impl Display for OpCode {
             OpCode::Return => "RET",
             OpCode::Constant => "CONST",
             OpCode::ConstantLong => "CONST_LONG",
+            OpCode::Negate => "NEGATE",
         };
         write!(f, "{}", display_data)
     }

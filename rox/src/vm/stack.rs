@@ -25,6 +25,7 @@ impl Stack {
 
     /// Attempts to push v onto the stack. If the stack size has been reach, push panics
     /// Internally, the pointer to the top of the stack is updated
+    #[inline]
     pub fn push(&mut self, v: Value) {
         // --- assert that there is still enough space in the stack
         assert!(
@@ -42,6 +43,7 @@ impl Stack {
 
     /// Pops the top-most value of the stack or None if the stack is empty
     /// Internally it iterates the pointer to the top of the stack.
+    #[inline]
     pub fn pop(&mut self) -> Option<Value> {
         // --- check if the stack is empty
         if self.top_offset() <= 0 {

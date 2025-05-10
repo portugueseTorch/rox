@@ -1,8 +1,10 @@
 use core::fmt;
 
-#[derive(Debug, Default)]
+use ordered_float::OrderedFloat;
+
+#[derive(Debug, Default, Eq, PartialEq)]
 pub enum Value {
-    Number(f64),
+    Number(OrderedFloat<f64>),
     Literal(&'static str),
     #[default]
     Empty,

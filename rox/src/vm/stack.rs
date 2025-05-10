@@ -52,6 +52,10 @@ impl Stack {
         Some(value)
     }
 
+    pub fn reset(&mut self) {
+        self.top = self.stack.as_mut_ptr();
+    }
+
     fn top_offset(&mut self) -> usize {
         unsafe {
             dbg!(self.top.offset_from(self.stack.as_mut_ptr()))
@@ -63,6 +67,8 @@ impl Stack {
 
 #[cfg(test)]
 mod tests {
+    use ordered_float::OrderedFloat;
+
     use super::*;
 
     #[test]
@@ -70,13 +76,37 @@ mod tests {
         let mut stack = Stack::new();
         assert_eq!(stack.len(), 0);
 
-        let one = Value::Number(42.0);
-        let two = Value::Literal("Hello, world!");
-
-        stack.push(one);
+        stack.push(Value::Number(OrderedFloat(42.0)));
         assert_eq!(stack.len(), 1);
 
-        stack.push(two);
+        stack.push(Value::Literal("Hello, world!"));
         assert_eq!(stack.len(), 2);
+    }
+
+    #[test]
+    fn pop() {
+        let mut stack = Stack::new();
+        assert_eq!(stack.len(), 0);
+
+        stack.push(Value::Number(OrderedFloat(42.0)));
+        stack.push(Value::Literal("Hello, world!"));
+
+        assert_eq!(stack.pop().unwrap(), Value::Literal("Hello, world!"));
+        assert_eq!(stack.pop().unwrap(), Value::Number(OrderedFloat(42.0)));
+        assert_eq!(stack.pop(), None);
+    }
+
+    #[test]
+    fn reset() {
+        let mut stack = Stack::new();
+
+        stack.push(Value::Number(OrderedFloat(42.0)));
+        stack.push(Value::Literal("Hello, world!"));
+        stack.push(Value::Number(OrderedFloat(42.0)));
+        stack.push(Value::Literal("Hello, world!"));
+        assert_eq!(stack.len(), 4);
+
+        stack.reset();
+        assert_eq!(stack.len(), 0);
     }
 }

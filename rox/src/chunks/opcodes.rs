@@ -11,6 +11,10 @@ pub enum OpCode {
     ConstantLong,
     //
     Negate,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }
 
 impl Display for OpCode {
@@ -20,6 +24,10 @@ impl Display for OpCode {
             OpCode::Constant => "CONST",
             OpCode::ConstantLong => "CONST_LONG",
             OpCode::Negate => "NEGATE",
+            OpCode::Add => "ADD",
+            OpCode::Subtract => "SUBTRACT",
+            OpCode::Multiply => "MULTIPLY",
+            OpCode::Divide => "DIVIDE",
         };
         write!(f, "{}", display_data)
     }

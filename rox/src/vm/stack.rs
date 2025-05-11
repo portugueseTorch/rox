@@ -23,6 +23,15 @@ impl Stack {
         self.top_offset()
     }
 
+    pub fn peek(&self) -> Option<&Value> {
+        // --- check if the stack is empty
+        if self.top_offset() <= 0 {
+            return None;
+        }
+
+        Some(unsafe { &*self.top })
+    }
+
     /// Attempts to push v onto the stack. If the stack size has been reach, push panics
     /// Internally, the pointer to the top of the stack is updated
     #[inline]
@@ -81,10 +90,10 @@ impl Stack {
         print!("]\n");
     }
 
-    fn top_offset(&mut self) -> usize {
+    fn top_offset(&self) -> usize {
         unsafe {
             self.top
-                .offset_from(self.stack.as_mut_ptr())
+                .offset_from(self.stack.as_ptr())
                 .try_into()
                 .unwrap()
         }

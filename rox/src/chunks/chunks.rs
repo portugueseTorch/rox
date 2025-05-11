@@ -108,7 +108,6 @@ impl Chunk {
         idx += 1;
 
         let op_data: Option<String> = match op {
-            OpCode::Return | OpCode::Negate => None,
             OpCode::Constant => {
                 let operand_idx = self.code.get(idx).unwrap();
                 idx += 1;
@@ -136,6 +135,12 @@ impl Chunk {
 
                 Some(operand.to_string())
             }
+            OpCode::Return
+            | OpCode::Negate
+            | OpCode::Add
+            | OpCode::Subtract
+            | OpCode::Multiply
+            | OpCode::Divide => None,
         };
 
         println!(

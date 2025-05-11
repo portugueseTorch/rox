@@ -62,6 +62,26 @@ impl VM {
                             _ => return VMResult::RuntimeError,
                         };
                     }
+                    OpCode::Add | OpCode::Subtract | OpCode::Multiply | OpCode::Divide => {
+                        // --- if parsing is correct, this should never happen
+                        let rhs = self.stack.pop().unwrap();
+                        let lhs = self.stack.pop().unwrap();
+
+                        let value = match op_code {
+                            OpCode::Add => lhs.add(rhs),
+                            OpCode::Subtract => lhs.sub(rhs),
+                            OpCode::Multiply => lhs.mult(rhs),
+                            OpCode::Divide => lhs.div(rhs),
+                            _ => unreachable!(),
+                        };
+
+                        if let Err(e) = value {
+                            log::error!("{}", e);
+                            return VMResult::RuntimeError;
+                        }
+
+                        self.stack.push(value.unwrap());
+                    }
                 }
             }
         }
@@ -115,5 +135,15 @@ mod tests {
 
         let mut vm = VM::new(chunk);
         assert_eq!(vm.run(), VMResult::Ok);
+    }
+
+    #[test]
+    fn arithmetic_ops() {
+        let mut chunk = Chunk::new();
+        chunk.write_constant(Value::Number(ordered_float::OrderedFloat(1.0)));
+        chunk.write_constant(Value::Number(ordered_float::OrderedFloat(2.0)));
+        chunk.write(OpCode::Add);
+
+        let mut vm = VM::new(chunk);
     }
 }

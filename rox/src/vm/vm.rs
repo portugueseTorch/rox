@@ -4,14 +4,16 @@ use crate::{bitwise, offset_ip, ptr_offset};
 
 use super::stack::Stack;
 
-macro_rules! trace {
+macro_rules! trace_instruction {
     ($vm:expr, $idx:expr) => {{
         #[cfg(feature = "trace")]
-        {
-            $vm.chunk.disassembleInstruction($idx);
-            $vm.stack.trace();
-        }
+        $vm.chunk.disassembleInstruction($idx)
     }};
+}
+macro_rules! trace_stack {
+    ($vm:expr) => {
+        $vm.stack.trace();
+    };
 }
 
 pub struct VM {
@@ -33,9 +35,15 @@ impl VM {
         let mut ip = chunk.code.as_ptr();
         let start = chunk.code.as_ptr();
 
+        #[cfg(feature = "trace")]
+        {
+            log::debug!("------ {} ------", "TRACE");
+            log::debug!("offset    line\top");
+        }
+
         unsafe {
             while ip < start.add(chunk.code.len()) {
-                trace!(self, ptr_offset!(start, ip));
+                trace_instruction!(self, ptr_offset!(start, ip));
 
                 let op_code = *ip;
                 offset_ip!(ip);
@@ -49,7 +57,7 @@ impl VM {
 
                         return VMResult::Ok;
                     }
-                    OpCode::Constant | OpCode::ConstantLong => {
+                    OpCode::Load | OpCode::LoadLong => {
                         let (constant, offset) = self
                             .read_constant(op_code, ip)
                             .expect("Should have a constant");
@@ -84,6 +92,8 @@ impl VM {
                         self.stack.push(value.unwrap());
                     }
                 }
+
+                trace_stack!(self);
             }
         }
 
@@ -99,8 +109,8 @@ impl VM {
     #[inline]
     fn read_constant(&self, op_code: OpCode, ip: *const u8) -> anyhow::Result<(&Value, usize)> {
         let (const_idx, offset) = match op_code {
-            OpCode::Constant => (unsafe { *ip as usize }, 1),
-            OpCode::ConstantLong => {
+            OpCode::Load => (unsafe { *ip as usize }, 1),
+            OpCode::LoadLong => {
                 let constant_idx_as_bytes = unsafe { std::slice::from_raw_parts(ip, 3) };
                 (
                     bitwise::u32_from_bytes(constant_idx_as_bytes.try_into().unwrap()) as usize,

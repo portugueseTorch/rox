@@ -74,7 +74,7 @@ impl Stack {
     }
 
     pub fn trace(&self) {
-        print!("[DEBUG] stack: [");
+        print!("[DEBUG]\t\t\tstack: [");
         let mut iter = self.stack.as_ptr();
         let start = self.stack.as_ptr();
 

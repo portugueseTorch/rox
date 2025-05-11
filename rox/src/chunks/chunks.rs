@@ -70,11 +70,11 @@ impl Chunk {
         // otherwise we need to write a ConstantLong and store the index as a 32-bit number
         match u8::try_from(idx) {
             Ok(idx_as_u8) => {
-                self.write(OpCode::Constant);
+                self.write(OpCode::Load);
                 self.write(idx_as_u8);
             }
             Err(_) => {
-                self.write(OpCode::ConstantLong);
+                self.write(OpCode::LoadLong);
                 self.write_24b(idx);
             }
         }
@@ -89,7 +89,7 @@ impl Chunk {
     /// self contained disassembler for a chunk - it is pure and can be used to log the generated
     /// bytecode of the current chunk
     pub fn disassemble(&self, name: &str) {
-        log::debug!("--- {} ---", name);
+        log::debug!("------ {} ------", name);
         log::debug!("offset    line\top");
         let mut i = 0;
 
@@ -108,7 +108,7 @@ impl Chunk {
         idx += 1;
 
         let op_data: Option<String> = match op {
-            OpCode::Constant => {
+            OpCode::Load => {
                 let operand_idx = self.code.get(idx).unwrap();
                 idx += 1;
                 let operand = self
@@ -117,7 +117,7 @@ impl Chunk {
                     .expect("invalid idx for constant data");
                 Some(operand.to_string())
             }
-            OpCode::ConstantLong => {
+            OpCode::LoadLong => {
                 // --- the index of the operand will be the next 24 bits
                 let idx_as_bytes = self
                     .code

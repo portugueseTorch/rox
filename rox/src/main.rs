@@ -4,9 +4,11 @@ use std::{
 };
 
 use clap::Parser;
+use scanner::scanner::Scanner;
 
 mod bitwise;
 mod chunks;
+mod scanner;
 mod vm;
 
 #[derive(Parser, Debug)]
@@ -52,6 +54,8 @@ fn repl() -> anyhow::Result<()> {
 }
 
 fn interpret(src: &str) -> anyhow::Result<()> {
+    let mut scanner = Scanner::new(src);
+
     Ok(())
 }
 

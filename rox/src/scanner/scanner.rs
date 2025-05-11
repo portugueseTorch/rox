@@ -27,7 +27,7 @@ impl<'a> Scanner<'a> {
             src,
             start: 0,
             cur: 0,
-            line: 0,
+            line: 1,
         }
     }
 
@@ -36,6 +36,8 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn scan_token(&mut self) -> anyhow::Result<Token<'a>> {
+        self.skip_whitespaces();
+
         // --- point start to the current token
         self.start = self.cur;
 
@@ -117,22 +119,63 @@ impl<'a> Scanner<'a> {
             return false;
         }
 
-        if self.peek().unwrap() == c {
-            // --- iterate cur
-            self.cur += 1;
-            return true;
+        if self.peek().unwrap() != c {
+            return false;
         }
 
-        false
+        // --- iterate cur
+        self.cur += 1;
+        true
     }
 
     /// peeks at the next character in the source string
     fn peek(&self) -> Option<char> {
+        if self.is_at_end() {
+            return None;
+        }
         let rest = &self.src[self.cur..];
         rest.chars().next()
     }
 
+    fn peek_next(&self) -> Option<char> {
+        if self.is_at_end() {
+            return None;
+        }
+        let rest = &self.src[self.cur..];
+        rest.chars().nth(1)
+    }
+
+    /// returns the span of the token being currently processed
     fn cur_span(&self) -> usize {
         self.cur - self.start
+    }
+
+    fn skip_whitespaces(&mut self) {
+        loop {
+            let c = self.peek();
+            if c.is_none() {
+                break;
+            }
+
+            match c.unwrap() {
+                ' ' | '\r' | '\t' => {
+                    self.advance();
+                }
+                '\n' => {
+                    self.line += 1;
+                    self.advance();
+                }
+                '/' => {
+                    if let Some('/') = self.peek_next() {
+                        while !self.is_at_end() && self.peek().unwrap() != '\n' {
+                            self.advance();
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            };
+        }
     }
 }

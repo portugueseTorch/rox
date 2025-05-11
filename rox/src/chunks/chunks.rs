@@ -89,8 +89,8 @@ impl Chunk {
     /// self contained disassembler for a chunk - it is pure and can be used to log the generated
     /// bytecode of the current chunk
     pub fn disassemble(&self, name: &str) {
-        println!("--- {} ---", name);
-        println!("offset    line\top");
+        log::debug!("--- {} ---", name);
+        log::debug!("offset    line\top");
         let mut i = 0;
 
         while i < self.code.len() {
@@ -143,7 +143,7 @@ impl Chunk {
             | OpCode::Divide => None,
         };
 
-        println!(
+        log::debug!(
             "0x{:0>6} {:>5}\t{}{}",
             op_idx,
             line_info.line,

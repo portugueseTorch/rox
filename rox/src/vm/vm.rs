@@ -44,7 +44,8 @@ impl VM {
                 match op_code {
                     OpCode::Return => {
                         let val = self.stack.pop().unwrap_or(Value::Empty);
-                        println!("Returning {}", val);
+                        #[cfg(feature = "trace")]
+                        log::debug!("Returning {}", val);
 
                         return VMResult::Ok;
                     }
@@ -84,6 +85,12 @@ impl VM {
                     }
                 }
             }
+        }
+
+        #[cfg(feature = "trace")]
+        {
+            log::debug!("--------- EOF ---------");
+            self.stack.trace();
         }
 
         VMResult::Ok
@@ -137,13 +144,69 @@ mod tests {
         assert_eq!(vm.run(), VMResult::Ok);
     }
 
-    #[test]
-    fn arithmetic_ops() {
-        let mut chunk = Chunk::new();
-        chunk.write_constant(Value::Number(ordered_float::OrderedFloat(1.0)));
-        chunk.write_constant(Value::Number(ordered_float::OrderedFloat(2.0)));
-        chunk.write(OpCode::Add);
+    macro_rules! make_chunk {
+        ($l:expr, $op:expr, $r:expr) => {{
+            let mut chunk = Chunk::new();
+            chunk.write_constant(Value::Number(ordered_float::OrderedFloat($l)));
+            chunk.write_constant(Value::Number(ordered_float::OrderedFloat($r)));
+            chunk.write($op);
+            chunk
+        }};
+    }
 
+    #[test]
+    fn add() {
+        let chunk = make_chunk!(10.0, OpCode::Add, 5.0);
         let mut vm = VM::new(chunk);
+        let res = vm.run();
+        assert_eq!(res, VMResult::Ok);
+        assert_eq!(
+            vm.stack.peek(),
+            Some(Value::Number(ordered_float::OrderedFloat(15.0))).as_ref()
+        );
+    }
+
+    #[test]
+    fn subtract() {
+        let chunk = make_chunk!(10.0, OpCode::Subtract, 5.0);
+        let mut vm = VM::new(chunk);
+        let res = vm.run();
+        assert_eq!(res, VMResult::Ok);
+        assert_eq!(
+            vm.stack.peek(),
+            Some(Value::Number(ordered_float::OrderedFloat(5.0))).as_ref()
+        );
+    }
+
+    #[test]
+    fn multiplpy() {
+        let chunk = make_chunk!(10.0, OpCode::Multiply, 5.0);
+        let mut vm = VM::new(chunk);
+        let res = vm.run();
+        assert_eq!(res, VMResult::Ok);
+        assert_eq!(
+            vm.stack.peek(),
+            Some(Value::Number(ordered_float::OrderedFloat(50.0))).as_ref()
+        );
+    }
+
+    #[test]
+    fn divide() {
+        let chunk = make_chunk!(10.0, OpCode::Divide, 5.0);
+        let mut vm = VM::new(chunk);
+        let res = vm.run();
+        assert_eq!(res, VMResult::Ok);
+        assert_eq!(
+            vm.stack.peek(),
+            Some(Value::Number(ordered_float::OrderedFloat(2.0))).as_ref()
+        );
+    }
+
+    #[test]
+    fn divide_by_zero() {
+        let chunk = make_chunk!(10.0, OpCode::Divide, 0.0);
+        let mut vm = VM::new(chunk);
+        let res = vm.run();
+        assert_eq!(res, VMResult::RuntimeError);
     }
 }

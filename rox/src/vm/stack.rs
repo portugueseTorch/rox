@@ -29,7 +29,7 @@ impl Stack {
             return None;
         }
 
-        Some(unsafe { &*self.top })
+        Some(unsafe { &*self.top.offset(-1) })
     }
 
     /// Attempts to push v onto the stack. If the stack size has been reach, push panics
@@ -74,7 +74,7 @@ impl Stack {
     }
 
     pub fn trace(&self) {
-        print!("  stack:\t[");
+        print!("[DEBUG] stack: [");
         let mut iter = self.stack.as_ptr();
         let start = self.stack.as_ptr();
 

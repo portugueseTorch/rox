@@ -90,7 +90,9 @@ impl<'a> Scanner<'a> {
                     self.cur_span()
                 )
             }
-            _ => unimplemented!(),
+            '"' => return self.string(),
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => return self.number(),
+            _ => {}
         }
 
         scanning_error!(self)
@@ -145,9 +147,9 @@ impl<'a> Scanner<'a> {
         rest.chars().nth(1)
     }
 
-    /// returns the span of the token being currently processed
+    /// returns the len of the token being currently processed
     fn cur_span(&self) -> usize {
-        self.cur - self.start
+        self.cur - self.start + 1
     }
 
     fn skip_whitespaces(&mut self) {
@@ -177,5 +179,38 @@ impl<'a> Scanner<'a> {
                 _ => break,
             };
         }
+    }
+
+    fn string(&mut self) -> anyhow::Result<Token<'a>> {
+        while !self.is_at_end() && self.peek().unwrap() != '"' {
+            // --- increase line number if we're at a new line
+            if self.peek().unwrap() == '\n' {
+                self.line += 1;
+            }
+
+            self.advance();
+        }
+
+        // --- fi we're at the end, we have an unterminated string
+        if self.is_at_end() {
+            scanning_error!(self, "unterminated string");
+        }
+
+        token!(self, TokenType::String, self.cur_span())
+    }
+
+    fn number(&mut self) -> anyhow::Result<Token<'a>> {
+        while !self.is_at_end() && self.peek().unwrap().is_digit(10) {
+            self.advance();
+        }
+
+        // check for decimal points
+        if self.matches('.') {
+            while !self.is_at_end() && self.peek().unwrap().is_digit(10) {
+                self.advance();
+            }
+        }
+
+        token!(self, TokenType::Number, self.cur_span())
     }
 }

@@ -16,9 +16,17 @@ macro_rules! token {
 macro_rules! scanning_error {
     ($scanner:expr) => {
         anyhow::bail!(
-            "scanning error at {}: {}",
+            "scanning error in line {} at {}",
             $scanner.line,
-            &$scanner.src[$scanner.start..]
+            &$scanner.src[$scanner.start..$scanner.cur + 1]
+        )
+    };
+    ($scanner:expr, $err:expr) => {
+        anyhow::bail!(
+            "scanning error in line {} at {}: {}",
+            $scanner.line,
+            &$scanner.src[$scanner.start..$scanner.cur + 1],
+            $err
         )
     };
 }

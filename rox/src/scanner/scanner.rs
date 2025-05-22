@@ -150,7 +150,7 @@ impl<'a> Scanner<'a> {
 
     /// returns the len of the token being currently processed
     fn cur_span(&self) -> usize {
-        self.cur - self.start + 1
+        self.cur - self.start
     }
 
     fn skip_whitespaces(&mut self) {
@@ -225,7 +225,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn make_identifier(&mut self) -> anyhow::Result<Token<'a>> {
-        let identifier = &self.src[self.start..=self.cur];
+        let identifier = &self.src[self.start..self.cur];
 
         match identifier {
             "and" => token!(self, TokenType::And, identifier.len()),
@@ -251,4 +251,92 @@ impl<'a> Scanner<'a> {
 
 fn is_alphanumeric(val: char) -> bool {
     return val.is_alphanumeric() || val == '_';
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple_scan() {
+        let mut scanner = Scanner::new("this is a simple scan");
+        assert!(scanner.scan().expect("This should be a valid scan") == ());
+    }
+
+    #[test]
+    fn scan_empty_src() {
+        let mut scanner = Scanner::new("");
+        let token = scanner
+            .scan_token()
+            .expect("Should emit at least one token");
+        assert_eq!(token.token_type, TokenType::EOF);
+    }
+
+    #[test]
+    fn unknown_character() {
+        let mut scanner = Scanner::new("#");
+        match scanner.scan_token() {
+            Err(_) => {}
+            _ => panic!("# is not a valid char"),
+        }
+    }
+
+    #[test]
+    fn scan_reserved_keywords() {
+        let mut scanner = Scanner::new("and class else");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::And);
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::Class);
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::Else);
+    }
+
+    #[test]
+    fn scan_identifier() {
+        let mut scanner = Scanner::new("Hello");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::Identifier);
+        assert_eq!(
+            token.lexeme.expect("identifier should have a lexeme"),
+            "Hello"
+        );
+    }
+
+    #[test]
+    fn scan_number() {
+        let mut scanner = Scanner::new("1337");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::Number);
+        assert_eq!(
+            token.lexeme.expect("identifier should have a lexeme"),
+            "1337"
+        );
+    }
+
+    #[test]
+    fn scan_decimal_number() {
+        let mut scanner = Scanner::new("1337.42");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::Number);
+        assert_eq!(
+            token.lexeme.expect("identifier should have a lexeme"),
+            "1337.42"
+        );
+    }
+
+    #[test]
+    fn scan_whitespaces() {
+        let mut scanner = Scanner::new("      \t\r\n");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::EOF);
+    }
+
+    #[test]
+    fn scan_whitespaces_and_comment() {
+        let mut scanner = Scanner::new("      \t\r\n// this is a comment and should be ignored\n// this should also be a comment even though afterwards we simply get EOF");
+        let token = scanner.scan_token().unwrap();
+        assert_eq!(token.token_type, TokenType::EOF);
+        assert_eq!(token.line, 3);
+    }
 }

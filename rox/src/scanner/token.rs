@@ -18,14 +18,14 @@ macro_rules! scanning_error {
         anyhow::bail!(
             "scanning error in line {} at {}",
             $scanner.line,
-            &$scanner.src[$scanner.start..$scanner.cur + 1]
+            &$scanner.src[$scanner.start..$scanner.cur]
         )
     };
     ($scanner:expr, $err:expr) => {
         anyhow::bail!(
             "scanning error in line {} at {}: {}",
             $scanner.line,
-            &$scanner.src[$scanner.start..$scanner.cur + 1],
+            &$scanner.src[$scanner.start..$scanner.cur],
             $err
         )
     };
@@ -33,10 +33,10 @@ macro_rules! scanning_error {
 
 pub struct Token<'a> {
     /// lexeme info
-    lexeme: Option<&'a str>,
+    pub lexeme: Option<&'a str>,
     /// line of the token
-    line: usize,
-    token_type: TokenType,
+    pub line: usize,
+    pub token_type: TokenType,
 }
 
 impl<'a> Token<'a> {
@@ -49,6 +49,7 @@ impl<'a> Token<'a> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum TokenType {
     LeftParen,
     RightParen,

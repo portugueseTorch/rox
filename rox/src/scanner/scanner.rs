@@ -91,7 +91,8 @@ impl<'a> Scanner<'a> {
                 )
             }
             '"' => return self.string(),
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => return self.number(),
+            '0'..='9' => return self.number(),
+            'A'..='Z' | 'a'..='z' | '_' => return self.identifier(),
             _ => {}
         }
 
@@ -213,4 +214,41 @@ impl<'a> Scanner<'a> {
 
         token!(self, TokenType::Number, self.cur_span())
     }
+
+    fn identifier(&mut self) -> anyhow::Result<Token<'a>> {
+        // --- scan the full word and try to match it afterwards
+        while !self.is_at_end() && is_alphanumeric(self.peek().unwrap()) {
+            self.advance();
+        }
+
+        return self.make_identifier();
+    }
+
+    fn make_identifier(&mut self) -> anyhow::Result<Token<'a>> {
+        let identifier = &self.src[self.start..=self.cur];
+
+        match identifier {
+            "and" => token!(self, TokenType::And, identifier.len()),
+            "class" => token!(self, TokenType::Class, identifier.len()),
+            "else" => token!(self, TokenType::Else, identifier.len()),
+            "false" => token!(self, TokenType::False, identifier.len()),
+            "for" => token!(self, TokenType::For, identifier.len()),
+            "fun" => token!(self, TokenType::Fun, identifier.len()),
+            "if" => token!(self, TokenType::If, identifier.len()),
+            "nil" => token!(self, TokenType::Nil, identifier.len()),
+            "or" => token!(self, TokenType::Or, identifier.len()),
+            "print" => token!(self, TokenType::Print, identifier.len()),
+            "return" => token!(self, TokenType::Return, identifier.len()),
+            "super" => token!(self, TokenType::Super, identifier.len()),
+            "this" => token!(self, TokenType::This, identifier.len()),
+            "true" => token!(self, TokenType::True, identifier.len()),
+            "var" => token!(self, TokenType::Var, identifier.len()),
+            "while" => token!(self, TokenType::While, identifier.len()),
+            _ => token!(self, TokenType::Identifier, identifier.len()),
+        }
+    }
+}
+
+fn is_alphanumeric(val: char) -> bool {
+    return val.is_alphanumeric() || val == '_';
 }

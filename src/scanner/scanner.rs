@@ -31,11 +31,16 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan(&mut self) -> anyhow::Result<()> {
-        Ok(())
+    pub fn scan(&mut self) -> anyhow::Result<Vec<Token<'a>>> {
+        let mut tokens = vec![];
+        while !self.is_at_end() {
+            tokens.push(self.scan_token()?);
+        }
+
+        Ok(tokens)
     }
 
-    pub fn scan_token(&mut self) -> anyhow::Result<Token<'a>> {
+    fn scan_token(&mut self) -> anyhow::Result<Token<'a>> {
         self.skip_whitespaces();
 
         // --- point start to the current token

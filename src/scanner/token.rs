@@ -31,6 +31,7 @@ macro_rules! scanning_error {
     };
 }
 
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     /// lexeme info
     pub lexeme: Option<&'a str>,
@@ -94,4 +95,5 @@ pub enum TokenType {
     While,
     //
     EOF,
+    Error,
 }

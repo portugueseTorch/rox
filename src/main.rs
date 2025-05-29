@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs::read_to_string,
     io::{self, Write},
 };
@@ -9,16 +10,10 @@ use scanner::scanner::Scanner;
 mod bitwise;
 mod chunks;
 mod compiler;
+mod errors;
 mod parser;
 mod scanner;
 mod vm;
-
-#[derive(clap::Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Cli {
-    /// Path to to the file to execute
-    path: String,
-}
 
 #[allow(unused_must_use)]
 fn init_logger() {
@@ -44,6 +39,9 @@ fn interpret(src: &str) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
     init_logger();
-    let cli = Cli::parse();
-    return run_file(&cli.path);
+
+    match env::args().nth(1) {
+        Some(path) => run_file(&path),
+        None => anyhow::bail!("Usage: rox <file_path>"),
+    }
 }

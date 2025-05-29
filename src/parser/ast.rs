@@ -1,14 +1,36 @@
 use std::fmt::{Display, Pointer};
 
+use serde::Serialize;
+
 use crate::scanner::token::Token;
 
-pub struct BinaryOperation<'a> {
+#[derive(Serialize)]
+pub struct BinaryExpr<'a> {
     pub op: Token<'a>,
     pub left: Box<Node<'a>>,
     pub right: Box<Node<'a>>,
 }
 
+#[derive(Serialize)]
+pub struct UnaryExpr<'a> {
+    pub op: Token<'a>,
+    pub operand: Box<Node<'a>>,
+}
+
+#[derive(Serialize)]
+pub struct AssignmentExpr<'a> {
+    pub name: Token<'a>,
+    pub expr: Box<Node<'a>>,
+}
+
+#[derive(Serialize)]
+pub struct CallExpr<'a> {
+    pub calee: Box<Node<'a>>,
+    pub args: Vec<Node<'a>>,
+}
+
 // --- may be subject to constant folding
+#[derive(Serialize)]
 pub enum Value<'a> {
     StringLiteral(&'a str),
     Number(i32),
@@ -16,6 +38,7 @@ pub enum Value<'a> {
     Nil,
 }
 
+#[derive(Serialize)]
 pub enum Node<'a> {
     // --- expressions
     /// Literals, containing
@@ -48,7 +71,7 @@ pub enum Node<'a> {
     ///            / \
     ///           b  42
     /// ```
-    BinOp(BinaryOperation<'a>),
+    BinOp(BinaryExpr<'a>),
 
     /// Unary operation:
     ///   - first element of the typle holds the token for the unary operator
@@ -57,7 +80,7 @@ pub enum Node<'a> {
     ///  -1337
     ///  !boolean
     ///  ```
-    Unary(Token<'a>, Box<Node<'a>>),
+    Unary(UnaryExpr<'a>),
 
     /// Asssignment operation:
     ///   - first element of the tuple holds the token for the name of the variable
@@ -65,7 +88,7 @@ pub enum Node<'a> {
     /// ```
     /// var myVar = a + b * 42;
     /// ```
-    Assignment(Token<'a>, Box<Node<'a>>),
+    Assignment(AssignmentExpr<'a>),
 
     /// Grouping around an expression
     /// ```
@@ -79,7 +102,7 @@ pub enum Node<'a> {
     /// ```
     /// obj.funcs.method(42)
     /// ```
-    Call(Box<Node<'a>>, Vec<Node<'a>>),
+    Call(CallExpr<'a>),
 
     /// Represents an error
     Error,
@@ -94,49 +117,17 @@ impl<'a> Node<'a> {
         false
     }
 
-    pub fn format(&self) -> String {
-        match self {
-            Node::Error => format!("ERROR"),
-            Node::Var(var) => format!("VAR ({})", var),
-            Node::Call(calee, args) => {
-                format!("CALL:\n  calee: {}\n  args: {}", calee.format(), args.len())
-            }
-            Node::Literal(val) => {
-                let val_as_string = match val {
-                    Value::StringLiteral(l) => format!("String({})", l),
-                    Value::Nil => "Nil".to_string(),
-                    Value::Bool(b) => format!("Boolean({})", b),
-                    Value::Number(n) => format!("Number({})", n),
-                };
-                format!("LITERAL: {}", val_as_string)
-            }
-            Node::Unary(op, expr) => {
-                format!("UNARY:\n  Op: {}\n  Expr: {}", op.token_type, expr.format())
-            }
-            Node::Grouping(expr) => {
-                format!("GROUP: {}", expr.format())
-            }
-            Node::Assignment(name, val) => {
-                format!(
-                    "ASSIGNMENT:\n  name: {}\n  val: {}",
-                    name.lexeme.unwrap(),
-                    val.format()
-                )
-            }
-            Node::BinOp(bin) => {
-                format!(
-                    "BINOP:\n  op: {}\n  lhs: {}\n  rhs: {}",
-                    bin.op.token_type,
-                    bin.left.format(),
-                    bin.right.format()
-                )
-            }
-        }
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).expect("Serialization failed")
     }
 }
 
 impl<'a> Display for Node<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.format())
+        write!(
+            f,
+            "{}",
+            serde_json::to_string_pretty(&self.to_json()).unwrap()
+        )
     }
 }

@@ -3,7 +3,7 @@ use crate::{
     scanner::token::{Token, TokenType},
 };
 
-use super::ast::{BinaryOperation, Node, Value};
+use super::ast::{BinaryExpr, Node, UnaryExpr, Value};
 
 macro_rules! parsing_error {
     ($parser:expr, $tok:expr, $msg:expr) => {
@@ -45,7 +45,10 @@ impl<'a> Parser<'a> {
             TokenType::Minus | TokenType::Plus | TokenType::Bang => {
                 let (_, rbp) = prefix_binding_power(tok.token_type);
                 let operand = self.parse_expr(rbp);
-                Node::Unary(tok, Box::new(operand))
+                Node::Unary(UnaryExpr {
+                    op: tok,
+                    operand: Box::new(operand),
+                })
             }
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
@@ -106,7 +109,7 @@ impl<'a> Parser<'a> {
             let rhs = self.parse_expr(rbp);
 
             // --- emit Node based on the type of the operator
-            lhs = Node::BinOp(BinaryOperation {
+            lhs = Node::BinOp(BinaryExpr {
                 left: Box::new(lhs),
                 right: Box::new(rhs),
                 op,
@@ -360,9 +363,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node {
-            Node::Unary(op, operand) => {
-                assert!(matches!(op.token_type, TokenType::Minus));
-                assert!(matches!(**operand, Node::Literal(_)));
+            Node::Unary(unary) => {
+                assert!(matches!(unary.op.token_type, TokenType::Minus));
+                assert!(matches!(*unary.operand, Node::Literal(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -376,9 +379,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node {
-            Node::Unary(op, operand) => {
-                assert!(matches!(op.token_type, TokenType::Minus));
-                assert!(matches!(**operand, Node::Unary(_, _)));
+            Node::Unary(unary) => {
+                assert!(matches!(unary.op.token_type, TokenType::Minus));
+                assert!(matches!(*unary.operand, Node::Unary(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -392,9 +395,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node {
-            Node::Unary(op, operand) => {
-                assert!(matches!(op.token_type, TokenType::Minus));
-                assert!(matches!(**operand, Node::Grouping(_)));
+            Node::Unary(unary) => {
+                assert!(matches!(unary.op.token_type, TokenType::Minus));
+                assert!(matches!(*unary.operand, Node::Grouping(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -407,6 +410,5 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        println!("{}", node);
     }
 }

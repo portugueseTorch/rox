@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::Serialize;
+
 #[macro_export]
 macro_rules! token {
     ($scanner:expr, $tok_type:expr) => {
@@ -33,7 +35,7 @@ macro_rules! scanning_error {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Token<'a> {
     /// lexeme info
     pub lexeme: Option<&'a str>,
@@ -52,7 +54,7 @@ impl<'a> Token<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize)]
 pub enum TokenType {
     LeftParen,
     RightParen,

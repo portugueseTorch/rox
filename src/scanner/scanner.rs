@@ -36,6 +36,7 @@ impl<'a> Scanner<'a> {
         while !self.is_at_end() {
             tokens.push(self.scan_token()?);
         }
+        tokens.push(self.scan_token()?);
 
         Ok(tokens)
     }
@@ -197,7 +198,9 @@ impl<'a> Scanner<'a> {
             self.advance();
         }
 
-        // --- fi we're at the end, we have an unterminated string
+        // println!("scanning: {}", &self.src[self.start..=self.cur]);
+
+        // --- if we're at the end, we have an unterminated string
         if self.is_at_end() {
             scanning_error!(self, "unterminated string");
         }
@@ -261,11 +264,6 @@ fn is_alphanumeric(val: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn simple_scan() {
-        let mut scanner = Scanner::new("this is a simple scan");
-    }
 
     #[test]
     fn scan_empty_src() {

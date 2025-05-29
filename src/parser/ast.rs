@@ -1,3 +1,5 @@
+use std::fmt::{Display, Pointer};
+
 use crate::scanner::token::Token;
 
 pub struct BinaryOperation<'a> {
@@ -90,5 +92,51 @@ impl<'a> Node<'a> {
         }
 
         false
+    }
+
+    pub fn format(&self) -> String {
+        match self {
+            Node::Error => format!("ERROR"),
+            Node::Var(var) => format!("VAR ({})", var),
+            Node::Call(calee, args) => {
+                format!("CALL:\n  calee: {}\n  args: {}", calee.format(), args.len())
+            }
+            Node::Literal(val) => {
+                let val_as_string = match val {
+                    Value::StringLiteral(l) => format!("String({})", l),
+                    Value::Nil => "Nil".to_string(),
+                    Value::Bool(b) => format!("Boolean({})", b),
+                    Value::Number(n) => format!("Number({})", n),
+                };
+                format!("LITERAL: {}", val_as_string)
+            }
+            Node::Unary(op, expr) => {
+                format!("UNARY:\n  Op: {}\n  Expr: {}", op.token_type, expr.format())
+            }
+            Node::Grouping(expr) => {
+                format!("GROUP: {}", expr.format())
+            }
+            Node::Assignment(name, val) => {
+                format!(
+                    "ASSIGNMENT:\n  name: {}\n  val: {}",
+                    name.lexeme.unwrap(),
+                    val.format()
+                )
+            }
+            Node::BinOp(bin) => {
+                format!(
+                    "BINOP:\n  op: {}\n  lhs: {}\n  rhs: {}",
+                    bin.op.token_type,
+                    bin.left.format(),
+                    bin.right.format()
+                )
+            }
+        }
+    }
+}
+
+impl<'a> Display for Node<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.format())
     }
 }

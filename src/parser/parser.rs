@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::{
     errors::RoxError,
     scanner::token::{Token, TokenType},
@@ -30,13 +28,17 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self) -> Node<'a> {
-        // TODO: implement statement parsing
-        self.parse_expr(0)
+        let expr = self.parse_expr(0);
+        self.assert(TokenType::Semicolon);
+        expr
     }
 
     fn parse_expr(&mut self, bp: usize) -> Node<'a> {
-        let tok = self.next();
+        if self.is_at_end() {
+            return Node::Error;
+        }
 
+        let tok = self.next();
         // --- parse lhs
         let mut lhs = match tok.token_type {
             TokenType::Number => {
@@ -57,19 +59,19 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            let op = self.next().clone();
+            let op = self.peek().clone();
             let (lbp, rbp) = match op.token_type {
                 TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash => {
                     infix_binding_power(op.token_type)
                 }
-                TokenType::EOF => break,
+                TokenType::EOF | TokenType::Semicolon => break,
                 _ => {
                     parsing_error!(
                         self,
-                        self.prev().unwrap(),
+                        op,
                         format!(
                             "unexpected token: expected arithmetic operator but got {:?}",
-                            self.prev().unwrap().token_type
+                            op.token_type
                         )
                     );
                 }
@@ -102,7 +104,7 @@ impl<'a> Parser<'a> {
     pub fn log_errors(&self) {
         assert!(!self.errors.is_empty());
         println!(
-            "Errors detecting while parsing: found {} errors",
+            "Errors detected while parsing: found {} errors",
             self.errors.len()
         );
 
@@ -123,6 +125,10 @@ impl<'a> Parser<'a> {
         token
     }
 
+    fn is_at_end(&self) -> bool {
+        self.cur >= self.tokens.len()
+    }
+
     /// Returns a reference to the previous token, if any
     fn prev(&self) -> Option<&Token<'a>> {
         if self.cur - 1 < 0 {
@@ -135,6 +141,10 @@ impl<'a> Parser<'a> {
     /// Asserts that the current token is of the provided type.
     /// If it is not sets the error flag to true and generates the appropriate error
     fn assert(&mut self, token_type: TokenType) {
+        if self.is_at_end() {
+            return;
+        }
+
         if self.tokens[self.cur].token_type == token_type {
             self.next();
             return;
@@ -149,7 +159,7 @@ impl<'a> Parser<'a> {
         );
     }
 
-    fn matches(&self, target: TokenType) -> bool {
+    fn _matches(&self, target: TokenType) -> bool {
         if self.peek().token_type == target {
             return true;
         }
@@ -167,6 +177,13 @@ impl<'a> Parser<'a> {
 
     /// Returns the token currently being parsed
     fn peek(&self) -> &Token<'a> {
+        if self.cur >= self.tokens.len() {
+            return &Token {
+                token_type: TokenType::EOF,
+                line: 0,
+                lexeme: None,
+            };
+        }
         &self.tokens[self.cur]
     }
 
@@ -174,7 +191,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// look_ahead(0).unwrap() == peek()
     /// ```
-    fn look_ahead(&self, step: usize) -> Option<&Token<'a>> {
+    fn _look_ahead(&self, step: usize) -> Option<&Token<'a>> {
         self.tokens.get(self.cur + step)
     }
 
@@ -182,11 +199,13 @@ impl<'a> Parser<'a> {
     /// and moves cur until the next recoverable position
     fn handle_error(&mut self, token: Token<'a>, msg: String) {
         self.errors.push(RoxError::new(token, msg));
-        while !self.matches_any(vec![
-            TokenType::Semicolon,
-            TokenType::RightBrace,
-            TokenType::RightParen,
-        ]) {
+        while !self.is_at_end()
+            && !self.matches_any(vec![
+                TokenType::Semicolon,
+                TokenType::RightBrace,
+                TokenType::RightParen,
+            ])
+        {
             self.next();
         }
     }
@@ -194,8 +213,77 @@ impl<'a> Parser<'a> {
 
 fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
     match token_type {
-        TokenType::Plus | TokenType::Less => (10, 11),
+        TokenType::Plus | TokenType::Minus => (10, 11),
         TokenType::Star | TokenType::Slash => (20, 21),
-        _ => panic!("invalid infix token_type: {:?}", token_type),
+        _ => panic!("invalid infix token_type: {}", token_type),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::scanner::scanner::Scanner;
+
+    use super::*;
+
+    fn scan<'a>(src: &'a str) -> Vec<Token<'a>> {
+        let mut scanner = Scanner::new(src);
+        let tokens = scanner.scan().unwrap();
+        tokens
+    }
+
+    #[test]
+    fn parse_number() {
+        let tokens = scan("42;");
+        assert_eq!(tokens.len(), 3, "Should have 3 tokens");
+        let mut it = tokens.iter();
+        assert_eq!(it.next().unwrap().token_type, TokenType::Number);
+        assert_eq!(it.next().unwrap().token_type, TokenType::Semicolon);
+        assert_eq!(it.next().unwrap().token_type, TokenType::EOF);
+
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+    }
+
+    #[test]
+    fn parse_identifier() {
+        let tokens = scan("myVar;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+    }
+
+    #[test]
+    fn parse_binop() {
+        let tokens = scan("2 + 3;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+    }
+
+    #[test]
+    fn parse_complex_binop() {
+        let tokens = scan("2 + 3 * 4 + 5 * 6;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+    }
+
+    #[test]
+    fn parse_incorrect_binop() {
+        let tokens = scan("3 +");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert_eq!(
+            parser.has_errors(),
+            true,
+            "3 + 2 - is not a valid expression"
+        );
+        parser.log_errors();
     }
 }

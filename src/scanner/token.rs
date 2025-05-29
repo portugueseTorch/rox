@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[macro_export]
 macro_rules! token {
     ($scanner:expr, $tok_type:expr) => {
@@ -63,7 +65,6 @@ pub enum TokenType {
     Semicolon,
     Slash,
     Star,
-    //
     Bang,
     BangEqual,
     Equal,
@@ -72,11 +73,9 @@ pub enum TokenType {
     GreaterEqual,
     Less,
     LessEqual,
-    //
     Identifier,
     StringLiteral,
     Number,
-    //
     And,
     Class,
     Else,
@@ -93,7 +92,54 @@ pub enum TokenType {
     True,
     Var,
     While,
-    //
     EOF,
     Error,
+}
+
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            TokenType::LeftParen => "(",
+            TokenType::RightParen => ")",
+            TokenType::LeftBrace => "{",
+            TokenType::RightBrace => "}",
+            TokenType::Comma => ",",
+            TokenType::Dot => ".",
+            TokenType::Minus => "-",
+            TokenType::Plus => "+",
+            TokenType::Semicolon => ";",
+            TokenType::Slash => "/",
+            TokenType::Star => "*",
+            TokenType::Bang => "!",
+            TokenType::BangEqual => "!=",
+            TokenType::Equal => "=",
+            TokenType::EqualEqual => "==",
+            TokenType::Greater => ">",
+            TokenType::GreaterEqual => ">=",
+            TokenType::Less => "<",
+            TokenType::LessEqual => "<=",
+            TokenType::Identifier => "IDENT",
+            TokenType::StringLiteral => "LITERAL",
+            TokenType::Number => "NUMBER",
+            TokenType::And => "AND",
+            TokenType::Class => "CLASS",
+            TokenType::Else => "ELSE",
+            TokenType::False => "FALSE",
+            TokenType::For => "FOR",
+            TokenType::Fun => "FUN",
+            TokenType::If => "IF",
+            TokenType::Nil => "NIL",
+            TokenType::Or => "OR",
+            TokenType::Print => "PRINT",
+            TokenType::Return => "RETURN",
+            TokenType::Super => "SUPER",
+            TokenType::This => "THIS",
+            TokenType::True => "TRUE",
+            TokenType::Var => "VAR",
+            TokenType::While => "WHILE",
+            TokenType::EOF => "EOF",
+            TokenType::Error => "ERROR",
+        };
+        write!(f, "{}", msg.to_string())
+    }
 }

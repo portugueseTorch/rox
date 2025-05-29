@@ -16,6 +16,6 @@ impl<'a> RoxError<'a> {
 
 impl<'a> Display for RoxError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[ERROR]: at {}: {}", self.token.line, self.msg)
+        write!(f, "[ERROR]: at line {}: {}", self.token.line, self.msg)
     }
 }

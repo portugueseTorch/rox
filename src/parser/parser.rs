@@ -244,6 +244,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+        assert!(matches!(node, Node::Literal(_)));
     }
 
     #[test]
@@ -253,6 +254,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+        assert!(matches!(node, Node::Var(_)));
     }
 
     #[test]
@@ -262,6 +264,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+        assert!(matches!(node, Node::BinOp(_)));
     }
 
     #[test]
@@ -271,6 +274,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
+        assert!(matches!(node, Node::BinOp(_)));
     }
 
     #[test]
@@ -284,6 +288,14 @@ mod tests {
             true,
             "3 + 2 - is not a valid expression"
         );
-        parser.log_errors();
+
+        match &node {
+            Node::BinOp(bin) => {
+                assert!(matches!(*bin.right, Node::Error))
+            }
+            _ => panic!("Should be binop"),
+        }
+
+        println!("{}", node);
     }
 }

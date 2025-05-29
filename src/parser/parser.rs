@@ -3,12 +3,12 @@ use crate::{
     scanner::token::{Token, TokenType},
 };
 
-use super::ast::{BinaryExpr, Node, UnaryExpr, Value};
+use super::ast::{AssignmentExpr, BinaryExpr, Node, NodeType, UnaryExpr, Value};
 
 macro_rules! parsing_error {
     ($parser:expr, $tok:expr, $msg:expr) => {
         $parser.handle_error($tok.clone(), $msg);
-        return Node::Error;
+        return Node::new($tok.clone(), NodeType::Error);
     };
 }
 
@@ -29,35 +29,33 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> Node<'a> {
         let expr = self.parse_expr(0);
-        self.assert(TokenType::Semicolon);
+        self.expect(TokenType::Semicolon);
         expr
     }
 
     fn parse_expr(&mut self, bp: usize) -> Node<'a> {
-        if self.is_at_end() {
-            return Node::Error;
-        }
-
         let tok = self.next().clone();
-        let mut lhs = match tok.token_type {
-            TokenType::StringLiteral => Node::Literal(Value::StringLiteral(tok.lexeme.unwrap())),
-            TokenType::Identifier => Node::Var(tok.lexeme.unwrap()),
+        let lhs = match tok.token_type {
+            TokenType::StringLiteral => {
+                NodeType::Literal(Value::StringLiteral(tok.lexeme.unwrap()))
+            }
+            TokenType::Identifier => NodeType::Var(tok.lexeme.unwrap()),
             TokenType::Minus | TokenType::Plus | TokenType::Bang => {
                 let (_, rbp) = prefix_binding_power(tok.token_type);
                 let operand = self.parse_expr(rbp);
-                Node::Unary(UnaryExpr {
-                    op: tok,
+                NodeType::Unary(UnaryExpr {
+                    op: tok.token_type,
                     operand: Box::new(operand),
                 })
             }
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
                 let parsed_num = num_as_str.parse().unwrap();
-                Node::Literal(Value::Number(parsed_num))
+                NodeType::Literal(Value::Number(parsed_num))
             }
             TokenType::LeftParen => {
                 let group_expr = self.parse_expr(0);
-                if !group_expr.is_error() && !self.matches(TokenType::RightParen) {
+                if !group_expr.node.is_error() && !self.matches(TokenType::RightParen) {
                     parsing_error!(
                         self,
                         self.prev().unwrap(),
@@ -68,10 +66,12 @@ impl<'a> Parser<'a> {
                     );
                 }
 
-                Node::Grouping(Box::new(group_expr))
+                NodeType::Grouping(Box::new(group_expr))
             }
-            _ => Node::Error,
+            _ => NodeType::Error,
         };
+
+        // --- on error, return
         if lhs.is_error() {
             parsing_error!(
                 self,
@@ -80,12 +80,18 @@ impl<'a> Parser<'a> {
             );
         }
 
+        // --- build AST node
+        let mut lhs = Node::new(tok.clone(), lhs);
+
         loop {
             let op = self.peek().clone();
-            let (lbp, rbp) = match op.token_type {
-                TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash => {
-                    infix_binding_power(op.token_type)
-                }
+            let op_type = op.token_type;
+            let (lbp, rbp) = match op_type {
+                TokenType::Plus
+                | TokenType::Minus
+                | TokenType::Star
+                | TokenType::Slash
+                | TokenType::Equal => infix_binding_power(op.token_type),
                 TokenType::EOF | TokenType::Semicolon | TokenType::RightParen => break,
                 _ => {
                     parsing_error!(
@@ -108,12 +114,40 @@ impl<'a> Parser<'a> {
             self.next();
             let rhs = self.parse_expr(rbp);
 
-            // --- emit Node based on the type of the operator
-            lhs = Node::BinOp(BinaryExpr {
-                left: Box::new(lhs),
-                right: Box::new(rhs),
-                op,
-            })
+            // --- emit ast node based on the type of the operator
+            lhs = match op_type {
+                TokenType::Equal => {
+                    // --- left hand side needs to be an identifier
+                    if !matches!(lhs.node, NodeType::Var(_)) {
+                        parsing_error!(self, lhs.token, "invalid variable assignment".to_string());
+                    }
+
+                    // --- if the right hand side is an assignment, this is also invalid
+                    if matches!(rhs.node, NodeType::Assignment(_)) {
+                        parsing_error!(
+                            self,
+                            lhs.token,
+                            "invalid chaining of assignments".to_string()
+                        );
+                    }
+
+                    Node::new(
+                        op,
+                        NodeType::Assignment(AssignmentExpr {
+                            name: lhs.token,
+                            expr: Box::new(rhs),
+                        }),
+                    )
+                }
+                _ => Node::new(
+                    op,
+                    NodeType::BinOp(BinaryExpr {
+                        left: Box::new(lhs),
+                        right: Box::new(rhs),
+                        op: op_type,
+                    }),
+                ),
+            };
         }
 
         lhs
@@ -163,7 +197,7 @@ impl<'a> Parser<'a> {
 
     /// Asserts that the current token is of the provided type.
     /// If it is not sets the error flag to true and generates the appropriate error
-    fn assert(&mut self, token_type: TokenType) {
+    fn expect(&mut self, token_type: TokenType) {
         if self.is_at_end() {
             return;
         }
@@ -237,6 +271,7 @@ fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
     match token_type {
         TokenType::Plus | TokenType::Minus => (10, 11),
         TokenType::Star | TokenType::Slash => (20, 21),
+        TokenType::Equal => (5, 6),
         _ => panic!("invalid infix token_type: '{}'", token_type),
     }
 }

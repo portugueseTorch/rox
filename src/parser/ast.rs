@@ -1,15 +1,15 @@
 use std::fmt::Display;
 
-use crate::scanner::token::Token;
+use crate::scanner::token::{Token, TokenType};
 
 pub struct BinaryExpr<'a> {
-    pub op: Token<'a>,
+    pub op: TokenType,
     pub left: Box<Node<'a>>,
     pub right: Box<Node<'a>>,
 }
 
 pub struct UnaryExpr<'a> {
-    pub op: Token<'a>,
+    pub op: TokenType,
     pub operand: Box<Node<'a>>,
 }
 
@@ -31,7 +31,18 @@ pub enum Value<'a> {
     Nil,
 }
 
-pub enum Node<'a> {
+pub struct Node<'a> {
+    pub token: Token<'a>,
+    pub node: NodeType<'a>,
+}
+
+impl<'a> Node<'a> {
+    pub fn new(token: Token<'a>, node: NodeType<'a>) -> Self {
+        Self { token, node }
+    }
+}
+
+pub enum NodeType<'a> {
     // --- expressions
     /// Literals, containing
     ///   - string literals as a slice into the source code
@@ -100,9 +111,9 @@ pub enum Node<'a> {
     Error,
 }
 
-impl<'a> Node<'a> {
+impl<'a> NodeType<'a> {
     pub fn is_error(&self) -> bool {
-        if matches!(self, Node::Error) {
+        if matches!(self, NodeType::Error) {
             return true;
         }
 
@@ -115,25 +126,29 @@ impl<'a> Node<'a> {
         let indent = " ".repeat(next_level * 2);
 
         match self {
-            Node::Error => format!("{}Error: null", spaces),
+            NodeType::Error => format!("{}Error: null", spaces),
 
-            Node::Var(var) => format!("{}Var: {}", spaces, var),
+            NodeType::Var(var) => format!("{}Var: {}", spaces, var),
 
-            Node::Call(call) => {
+            NodeType::Call(call) => {
                 let mut s = format!("{}Call:\n", spaces);
-                s += &format!("{}Calee:\n{}", indent, call.calee.to_yaml(next_level + 1));
+                s += &format!(
+                    "{}Calee:\n{}",
+                    indent,
+                    call.calee.node.to_yaml(next_level + 1)
+                );
                 s += &format!("{}Args:\n", indent);
                 for arg in call.args.iter() {
                     s += &format!(
                         "{}- {}\n",
                         " ".repeat((next_level + 1) * 2),
-                        arg.to_yaml(next_level + 2).trim_end()
+                        arg.node.to_yaml(next_level + 2).trim_end()
                     );
                 }
                 s.trim_end().to_string()
             }
 
-            Node::Literal(val) => {
+            NodeType::Literal(val) => {
                 let val_as_string = match val {
                     Value::StringLiteral(l) => format!("{}", l),
                     Value::Nil => "Nil".to_string(),
@@ -143,40 +158,52 @@ impl<'a> Node<'a> {
                 format!("{}Literal: {}", spaces, val_as_string)
             }
 
-            Node::Unary(unary) => {
+            NodeType::Unary(unary) => {
                 let mut s = format!("{}Unary:\n", spaces);
-                s += &format!("{}Op: '{}'\n", indent, unary.op.token_type);
-                s += &format!("{}Expr:\n{}", indent, unary.operand.to_yaml(next_level + 1));
+                s += &format!("{}Op: '{}'\n", indent, unary.op);
+                s += &format!(
+                    "{}Expr:\n{}",
+                    indent,
+                    unary.operand.node.to_yaml(next_level + 1)
+                );
                 s
             }
 
-            Node::Grouping(expr) => {
-                format!("{}Group:\n{}", spaces, expr.to_yaml(next_level))
+            NodeType::Grouping(expr) => {
+                format!("{}Group:\n{}", spaces, expr.node.to_yaml(next_level))
             }
 
-            Node::Assignment(a) => {
+            NodeType::Assignment(a) => {
                 let mut s = format!("{}Assignment:\n", spaces);
                 s += &format!(
                     "{}Name: {}\n",
                     indent,
                     a.name.lexeme.as_deref().unwrap_or("")
                 );
-                s += &format!("{}Val:\n{}", indent, a.expr.to_yaml(next_level + 1));
+                s += &format!("{}Val:\n{}", indent, a.expr.node.to_yaml(next_level + 1));
                 s
             }
 
-            Node::BinOp(bin) => {
+            NodeType::BinOp(bin) => {
                 let mut s = format!("{}BinOp:\n", spaces);
-                s += &format!("{}Op: '{}'", indent, bin.op.token_type);
-                s += &format!("\n{}Lhs:\n{}", indent, bin.left.to_yaml(next_level + 1));
-                s += &format!("\n{}Rhs:\n{}", indent, bin.right.to_yaml(next_level + 1));
+                s += &format!("{}Op: '{}'", indent, bin.op);
+                s += &format!(
+                    "\n{}Lhs:\n{}",
+                    indent,
+                    bin.left.node.to_yaml(next_level + 1)
+                );
+                s += &format!(
+                    "\n{}Rhs:\n{}",
+                    indent,
+                    bin.right.node.to_yaml(next_level + 1)
+                );
                 s
             }
         }
     }
 }
 
-impl<'a> Display for Node<'a> {
+impl<'a> Display for NodeType<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}\n", self.to_yaml(0))
     }

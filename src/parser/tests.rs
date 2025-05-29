@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{ast::Node, parser::Parser},
+        parser::{ast::NodeType, parser::Parser},
         scanner::{
             scanner::Scanner,
             token::{Token, TokenType},
@@ -27,7 +27,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node, Node::Literal(_)));
+        assert!(matches!(node.node, NodeType::Literal(_)));
     }
 
     #[test]
@@ -37,7 +37,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node, Node::Var(_)));
+        assert!(matches!(node.node, NodeType::Var(_)));
     }
 
     #[test]
@@ -47,7 +47,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node, Node::BinOp(_)));
+        assert!(matches!(node.node, NodeType::BinOp(_)));
     }
 
     #[test]
@@ -57,7 +57,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node, Node::BinOp(_)));
+        assert!(matches!(node.node, NodeType::BinOp(_)));
     }
 
     #[test]
@@ -72,9 +72,9 @@ mod tests {
             "3 + 2 - is not a valid expression"
         );
 
-        match &node {
-            Node::BinOp(bin) => {
-                assert!(matches!(*bin.right, Node::Error))
+        match &node.node {
+            NodeType::BinOp(bin) => {
+                assert!(matches!(bin.right.node, NodeType::Error))
             }
             _ => panic!("Should be binop"),
         }
@@ -87,7 +87,7 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node, Node::Grouping(_)));
+        assert!(matches!(node.node, NodeType::Grouping(_)));
     }
 
     #[test]
@@ -97,10 +97,10 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        match &node {
-            Node::BinOp(bin) => {
-                assert!(matches!(*bin.left, Node::Grouping(_)));
-                assert!(matches!(*bin.right, Node::Literal(_)));
+        match &node.node {
+            NodeType::BinOp(bin) => {
+                assert!(matches!(bin.left.node, NodeType::Grouping(_)));
+                assert!(matches!(bin.right.node, NodeType::Literal(_)));
             }
             _ => panic!("Should be binop"),
         }
@@ -113,10 +113,10 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        match &node {
-            Node::Unary(unary) => {
-                assert!(matches!(unary.op.token_type, TokenType::Minus));
-                assert!(matches!(*unary.operand, Node::Literal(_)));
+        match &node.node {
+            NodeType::Unary(unary) => {
+                assert!(matches!(unary.op, TokenType::Minus));
+                assert!(matches!(unary.operand.node, NodeType::Literal(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -129,10 +129,10 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        match &node {
-            Node::Unary(unary) => {
-                assert!(matches!(unary.op.token_type, TokenType::Minus));
-                assert!(matches!(*unary.operand, Node::Unary(_)));
+        match &node.node {
+            NodeType::Unary(unary) => {
+                assert!(matches!(unary.op, TokenType::Minus));
+                assert!(matches!(unary.operand.node, NodeType::Unary(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -145,10 +145,10 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
-        match &node {
-            Node::Unary(unary) => {
-                assert!(matches!(unary.op.token_type, TokenType::Minus));
-                assert!(matches!(*unary.operand, Node::Grouping(_)));
+        match &node.node {
+            NodeType::Unary(unary) => {
+                assert!(matches!(unary.op, TokenType::Minus));
+                assert!(matches!(unary.operand.node, NodeType::Grouping(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -157,9 +157,29 @@ mod tests {
     #[test]
     fn parse_complex() {
         let tokens = scan("-(42 + 10) + 27 / (10 + (b * myVar));");
+        let parser = Parser::new(tokens);
+
+        assert!(!parser.has_errors());
+    }
+
+    #[test]
+    fn parse_assignment() {
+        let tokens = scan("myVar = 42;");
         let mut parser = Parser::new(tokens);
         let node = parser.parse();
 
         assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::Assignment(_)));
+    }
+
+    #[test]
+    fn parse_assignment_to_expression() {
+        let tokens = scan("myVar = -(42 + 10);");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::Assignment(_)));
+        println!("{}", node.node);
     }
 }

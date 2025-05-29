@@ -109,7 +109,7 @@ impl<'a> Node<'a> {
         false
     }
 
-    pub fn to_yaml(&self, level: usize) -> String {
+    fn to_yaml(&self, level: usize) -> String {
         let spaces = " ".repeat(level * 2);
         let next_level = level + 1;
         let indent = " ".repeat(next_level * 2);

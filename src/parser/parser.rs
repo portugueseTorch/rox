@@ -39,7 +39,6 @@ impl<'a> Parser<'a> {
         }
 
         let tok = self.next();
-        // --- parse lhs
         let mut lhs = match tok.token_type {
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
@@ -48,13 +47,28 @@ impl<'a> Parser<'a> {
             }
             TokenType::StringLiteral => Node::Literal(Value::StringLiteral(tok.lexeme.unwrap())),
             TokenType::Identifier => Node::Var(tok.lexeme.unwrap()),
+            TokenType::LeftParen => {
+                let group_expr = self.parse_expr(0);
+                if !group_expr.is_error() && !self.matches(TokenType::RightParen) {
+                    parsing_error!(
+                        self,
+                        self.prev().unwrap(),
+                        format!(
+                            "unexpected token: expected '(' but got '{}'",
+                            self.prev().unwrap().token_type
+                        )
+                    );
+                }
+
+                Node::Grouping(Box::new(group_expr))
+            }
             _ => Node::Error,
         };
         if lhs.is_error() {
             parsing_error!(
                 self,
                 self.prev().unwrap(),
-                format!("unexpected token: {:?}", self.prev().unwrap().token_type)
+                format!("unexpected token: '{}'", self.prev().unwrap().token_type)
             );
         }
 
@@ -64,13 +78,13 @@ impl<'a> Parser<'a> {
                 TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash => {
                     infix_binding_power(op.token_type)
                 }
-                TokenType::EOF | TokenType::Semicolon => break,
+                TokenType::EOF | TokenType::Semicolon | TokenType::RightParen => break,
                 _ => {
                     parsing_error!(
                         self,
                         op,
                         format!(
-                            "unexpected token: expected arithmetic operator but got {:?}",
+                            "unexpected token: expected arithmetic operator but got '{}'",
                             op.token_type
                         )
                     );
@@ -120,9 +134,12 @@ impl<'a> Parser<'a> {
 impl<'a> Parser<'a> {
     /// Advances cur and returns the previous token
     fn next(&mut self) -> &Token<'a> {
-        let token = &self.tokens[self.cur];
         self.cur += 1;
-        token
+        self.prev().unwrap_or(&Token {
+            token_type: TokenType::EOF,
+            line: 0,
+            lexeme: None,
+        })
     }
 
     fn is_at_end(&self) -> bool {
@@ -153,21 +170,23 @@ impl<'a> Parser<'a> {
         self.handle_error(
             self.tokens[self.cur].clone(),
             format!(
-                "unexpected token type: expected {:?} but got {:?}",
+                "unexpected token type: expected '{}' but got '{}'",
                 token_type, self.tokens[self.cur].token_type
             ),
         );
     }
 
-    fn _matches(&self, target: TokenType) -> bool {
+    /// If current token matches target, iterates and returns true
+    fn matches(&mut self, target: TokenType) -> bool {
         if self.peek().token_type == target {
+            self.next();
             return true;
         }
 
         false
     }
 
-    fn matches_any(&self, targets: Vec<TokenType>) -> bool {
+    fn equals_any(&self, targets: Vec<TokenType>) -> bool {
         if targets.contains(&self.peek().token_type) {
             return true;
         }
@@ -177,14 +196,11 @@ impl<'a> Parser<'a> {
 
     /// Returns the token currently being parsed
     fn peek(&self) -> &Token<'a> {
-        if self.cur >= self.tokens.len() {
-            return &Token {
-                token_type: TokenType::EOF,
-                line: 0,
-                lexeme: None,
-            };
-        }
-        &self.tokens[self.cur]
+        self.tokens.get(self.cur).unwrap_or(&Token {
+            token_type: TokenType::EOF,
+            line: 0,
+            lexeme: None,
+        })
     }
 
     /// Returns the token at an offset of `step` from the token being parsed.
@@ -200,7 +216,7 @@ impl<'a> Parser<'a> {
     fn handle_error(&mut self, token: Token<'a>, msg: String) {
         self.errors.push(RoxError::new(token, msg));
         while !self.is_at_end()
-            && !self.matches_any(vec![
+            && !self.equals_any(vec![
                 TokenType::Semicolon,
                 TokenType::RightBrace,
                 TokenType::RightParen,
@@ -215,7 +231,7 @@ fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
     match token_type {
         TokenType::Plus | TokenType::Minus => (10, 11),
         TokenType::Star | TokenType::Slash => (20, 21),
-        _ => panic!("invalid infix token_type: {}", token_type),
+        _ => panic!("invalid infix token_type: '{}'", token_type),
     }
 }
 
@@ -295,7 +311,32 @@ mod tests {
             }
             _ => panic!("Should be binop"),
         }
+    }
 
+    #[test]
+    fn parse_group_expr() {
+        let tokens = scan("(3 + 2);");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node, Node::Grouping(_)));
+    }
+
+    #[test]
+    fn parse_arithmetic_with_group() {
+        let tokens = scan("(3 + 2) * 10;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        match &node {
+            Node::BinOp(bin) => {
+                assert!(matches!(*bin.left, Node::Grouping(_)));
+                assert!(matches!(*bin.right, Node::Literal(_)));
+            }
+            _ => panic!("Should be binop"),
+        }
         println!("{}", node);
     }
 }

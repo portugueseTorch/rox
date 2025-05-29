@@ -33,6 +33,11 @@ fn interpret(src: &str) -> anyhow::Result<()> {
     let tokens = scanner.scan()?;
 
     let mut parser = Parser::new(tokens);
+    let ast = parser.parse();
+    if parser.has_errors() {
+        parser.log_errors();
+        anyhow::bail!("failure during parsing");
+    }
 
     Ok(())
 }

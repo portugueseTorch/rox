@@ -1,9 +1,18 @@
+use std::fmt::Debug;
+
 use crate::{
     errors::RoxError,
     scanner::token::{Token, TokenType},
 };
 
-use super::ast::{Node, Value};
+use super::ast::{BinaryOperation, Node, Value};
+
+macro_rules! parsing_error {
+    ($parser:expr, $tok:expr, $msg:expr) => {
+        $parser.handle_error($tok.clone(), $msg);
+        return Node::Error;
+    };
+}
 
 pub struct Parser<'a> {
     cur: usize,
@@ -22,12 +31,13 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> Node<'a> {
         // TODO: implement statement parsing
-        self.parse_expr()
+        self.parse_expr(0)
     }
 
-    fn parse_expr(&mut self) -> Node<'a> {
+    fn parse_expr(&mut self, bp: usize) -> Node<'a> {
         let tok = self.next();
 
+        // --- parse lhs
         let mut lhs = match tok.token_type {
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
@@ -39,19 +49,66 @@ impl<'a> Parser<'a> {
             _ => Node::Error,
         };
         if lhs.is_error() {
-            let error_token = self.prev().unwrap();
-            self.log_error(
-                error_token.clone(),
-                Some(format!("unexpected token: {:?}", error_token.token_type)),
+            parsing_error!(
+                self,
+                self.prev().unwrap(),
+                format!("unexpected token: {:?}", self.prev().unwrap().token_type)
             );
-            return lhs;
         }
 
-        unimplemented!();
+        loop {
+            let op = self.next().clone();
+            let (lbp, rbp) = match op.token_type {
+                TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash => {
+                    infix_binding_power(op.token_type)
+                }
+                TokenType::EOF => break,
+                _ => {
+                    parsing_error!(
+                        self,
+                        self.prev().unwrap(),
+                        format!(
+                            "unexpected token: expected arithmetic operator but got {:?}",
+                            self.prev().unwrap().token_type
+                        )
+                    );
+                }
+            };
+
+            // --- if the left binding power of the operator is lower, break
+            if lbp < bp {
+                break;
+            }
+
+            // --- parse right hand side
+            self.next();
+            let rhs = self.parse_expr(rbp);
+
+            // --- emit Node based on the type of the operator
+            lhs = Node::BinOp(BinaryOperation {
+                left: Box::new(lhs),
+                right: Box::new(rhs),
+                op,
+            })
+        }
+
+        lhs
     }
 
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
+    }
+
+    pub fn log_errors(&self) {
+        assert!(!self.errors.is_empty());
+        println!(
+            "Errors detecting while parsing: found {} errors",
+            self.errors.len()
+        );
+
+        for error in self.errors.iter() {
+            eprintln!("{}", error);
+        }
     }
 }
 
@@ -83,12 +140,12 @@ impl<'a> Parser<'a> {
             return;
         }
 
-        self.log_error(
+        self.handle_error(
             self.tokens[self.cur].clone(),
-            Some(format!(
+            format!(
                 "unexpected token type: expected {:?} but got {:?}",
                 token_type, self.tokens[self.cur].token_type
-            )),
+            ),
         );
     }
 
@@ -123,8 +180,8 @@ impl<'a> Parser<'a> {
 
     /// Builds a parsing error, adds it to the error vector,
     /// and moves cur until the next recoverable position
-    fn log_error(&mut self, token: Token<'a>, msg: Option<String>) {
-        self.errors.push(RoxError::ParsingError(token, msg));
+    fn handle_error(&mut self, token: Token<'a>, msg: String) {
+        self.errors.push(RoxError::new(token, msg));
         while !self.matches_any(vec![
             TokenType::Semicolon,
             TokenType::RightBrace,
@@ -132,5 +189,13 @@ impl<'a> Parser<'a> {
         ]) {
             self.next();
         }
+    }
+}
+
+fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
+    match token_type {
+        TokenType::Plus | TokenType::Less => (10, 11),
+        TokenType::Star | TokenType::Slash => (20, 21),
+        _ => panic!("invalid infix token_type: {:?}", token_type),
     }
 }

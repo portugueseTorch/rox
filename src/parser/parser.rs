@@ -410,5 +410,6 @@ mod tests {
         let node = parser.parse();
 
         assert!(!parser.has_errors());
+        println!("{}", node);
     }
 }

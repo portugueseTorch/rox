@@ -1,36 +1,29 @@
-use std::fmt::{Display, Pointer};
-
-use serde::Serialize;
+use std::fmt::Display;
 
 use crate::scanner::token::Token;
 
-#[derive(Serialize)]
 pub struct BinaryExpr<'a> {
     pub op: Token<'a>,
     pub left: Box<Node<'a>>,
     pub right: Box<Node<'a>>,
 }
 
-#[derive(Serialize)]
 pub struct UnaryExpr<'a> {
     pub op: Token<'a>,
     pub operand: Box<Node<'a>>,
 }
 
-#[derive(Serialize)]
 pub struct AssignmentExpr<'a> {
     pub name: Token<'a>,
     pub expr: Box<Node<'a>>,
 }
 
-#[derive(Serialize)]
 pub struct CallExpr<'a> {
     pub calee: Box<Node<'a>>,
     pub args: Vec<Node<'a>>,
 }
 
 // --- may be subject to constant folding
-#[derive(Serialize)]
 pub enum Value<'a> {
     StringLiteral(&'a str),
     Number(i32),
@@ -38,7 +31,6 @@ pub enum Value<'a> {
     Nil,
 }
 
-#[derive(Serialize)]
 pub enum Node<'a> {
     // --- expressions
     /// Literals, containing
@@ -117,17 +109,75 @@ impl<'a> Node<'a> {
         false
     }
 
-    pub fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).expect("Serialization failed")
+    pub fn to_yaml(&self, level: usize) -> String {
+        let spaces = " ".repeat(level * 2);
+        let next_level = level + 1;
+        let indent = " ".repeat(next_level * 2);
+
+        match self {
+            Node::Error => format!("{}Error: null", spaces),
+
+            Node::Var(var) => format!("{}Var: {}", spaces, var),
+
+            Node::Call(call) => {
+                let mut s = format!("{}Call:\n", spaces);
+                s += &format!("{}Calee:\n{}", indent, call.calee.to_yaml(next_level + 1));
+                s += &format!("{}Args:\n", indent);
+                for arg in call.args.iter() {
+                    s += &format!(
+                        "{}- {}\n",
+                        " ".repeat((next_level + 1) * 2),
+                        arg.to_yaml(next_level + 2).trim_end()
+                    );
+                }
+                s.trim_end().to_string()
+            }
+
+            Node::Literal(val) => {
+                let val_as_string = match val {
+                    Value::StringLiteral(l) => format!("{}", l),
+                    Value::Nil => "Nil".to_string(),
+                    Value::Bool(b) => format!("{}", b),
+                    Value::Number(n) => format!("{}", n),
+                };
+                format!("{}Literal: {}", spaces, val_as_string)
+            }
+
+            Node::Unary(unary) => {
+                let mut s = format!("{}Unary:\n", spaces);
+                s += &format!("{}Op: '{}'\n", indent, unary.op.token_type);
+                s += &format!("{}Expr:\n{}", indent, unary.operand.to_yaml(next_level + 1));
+                s
+            }
+
+            Node::Grouping(expr) => {
+                format!("{}Group:\n{}", spaces, expr.to_yaml(next_level))
+            }
+
+            Node::Assignment(a) => {
+                let mut s = format!("{}Assignment:\n", spaces);
+                s += &format!(
+                    "{}Name: {}\n",
+                    indent,
+                    a.name.lexeme.as_deref().unwrap_or("")
+                );
+                s += &format!("{}Val:\n{}", indent, a.expr.to_yaml(next_level + 1));
+                s
+            }
+
+            Node::BinOp(bin) => {
+                let mut s = format!("{}BinOp:\n", spaces);
+                s += &format!("{}Op: '{}'", indent, bin.op.token_type);
+                s += &format!("\n{}Lhs:\n{}", indent, bin.left.to_yaml(next_level + 1));
+                s += &format!("\n{}Rhs:\n{}", indent, bin.right.to_yaml(next_level + 1));
+                s
+            }
+        }
     }
 }
 
 impl<'a> Display for Node<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            serde_json::to_string_pretty(&self.to_json()).unwrap()
-        )
+        write!(f, "\n{}\n", self.to_yaml(0))
     }
 }

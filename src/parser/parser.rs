@@ -38,15 +38,20 @@ impl<'a> Parser<'a> {
             return Node::Error;
         }
 
-        let tok = self.next();
+        let tok = self.next().clone();
         let mut lhs = match tok.token_type {
+            TokenType::StringLiteral => Node::Literal(Value::StringLiteral(tok.lexeme.unwrap())),
+            TokenType::Identifier => Node::Var(tok.lexeme.unwrap()),
+            TokenType::Minus | TokenType::Plus | TokenType::Bang => {
+                let (_, rbp) = prefix_binding_power(tok.token_type);
+                let operand = self.parse_expr(rbp);
+                Node::Unary(tok, Box::new(operand))
+            }
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
                 let parsed_num = num_as_str.parse().unwrap();
                 Node::Literal(Value::Number(parsed_num))
             }
-            TokenType::StringLiteral => Node::Literal(Value::StringLiteral(tok.lexeme.unwrap())),
-            TokenType::Identifier => Node::Var(tok.lexeme.unwrap()),
             TokenType::LeftParen => {
                 let group_expr = self.parse_expr(0);
                 if !group_expr.is_error() && !self.matches(TokenType::RightParen) {
@@ -235,6 +240,14 @@ fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
     }
 }
 
+fn prefix_binding_power(token_type: TokenType) -> ((), usize) {
+    match token_type {
+        TokenType::Minus | TokenType::Plus => ((), 90),
+        TokenType::Bang => ((), 100),
+        _ => panic!("invalid prefix token_type: '{}'", token_type),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::scanner::scanner::Scanner;
@@ -337,6 +350,63 @@ mod tests {
             }
             _ => panic!("Should be binop"),
         }
+    }
+
+    #[test]
+    fn parse_simple_unary() {
+        let tokens = scan("-42;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        match &node {
+            Node::Unary(op, operand) => {
+                assert!(matches!(op.token_type, TokenType::Minus));
+                assert!(matches!(**operand, Node::Literal(_)));
+            }
+            _ => panic!("Should be unary"),
+        }
+    }
+
+    #[test]
+    fn parse_multi_unary() {
+        let tokens = scan("--42;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        match &node {
+            Node::Unary(op, operand) => {
+                assert!(matches!(op.token_type, TokenType::Minus));
+                assert!(matches!(**operand, Node::Unary(_, _)));
+            }
+            _ => panic!("Should be unary"),
+        }
+    }
+
+    #[test]
+    fn parse_grouped_unary() {
+        let tokens = scan("-(42 + 10);");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        match &node {
+            Node::Unary(op, operand) => {
+                assert!(matches!(op.token_type, TokenType::Minus));
+                assert!(matches!(**operand, Node::Grouping(_)));
+            }
+            _ => panic!("Should be unary"),
+        }
+    }
+
+    #[test]
+    fn parse_complex() {
+        let tokens = scan("-(42 + 10) + 27 / (10 + (b * myVar));");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
         println!("{}", node);
     }
 }

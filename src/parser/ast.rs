@@ -1,13 +1,13 @@
 use crate::scanner::token::Token;
 
-struct BinaryOperation<'a> {
-    op: Token<'a>,
-    left: Box<Node<'a>>,
-    right: Box<Node<'a>>,
+pub struct BinaryOperation<'a> {
+    pub op: Token<'a>,
+    pub left: Box<Node<'a>>,
+    pub right: Box<Node<'a>>,
 }
 
 // --- may be subject to constant folding
-enum Value<'a> {
+pub enum Value<'a> {
     StringLiteral(&'a str),
     Number(i32),
     Bool(bool),
@@ -78,4 +78,17 @@ pub enum Node<'a> {
     /// obj.funcs.method(42)
     /// ```
     Call(Box<Node<'a>>, Vec<Node<'a>>),
+
+    /// Represents an error
+    Error,
+}
+
+impl<'a> Node<'a> {
+    pub fn is_error(&self) -> bool {
+        if matches!(self, Node::Error) {
+            return true;
+        }
+
+        false
+    }
 }

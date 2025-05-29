@@ -17,7 +17,7 @@ macro_rules! offset_ip {
 pub struct Chunk {
     /// bytecode instruction - defined as a general byte array to allow instructions to have
     /// operands (e.g., constants). Although more laborious this approach is prefered over having
-    /// OpCodes hold inner values in favor of less memory expenditure
+    /// OpCodes hold inner values in favor of less memory expenditure and cache locality
     pub code: Vec<u8>,
     pub constants: Vec<Value>,
     pub line_info: Vec<LineInfo>,

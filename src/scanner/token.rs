@@ -74,7 +74,7 @@ pub enum TokenType {
     LessEqual,
     //
     Identifier,
-    String,
+    StringLiteral,
     Number,
     //
     And,

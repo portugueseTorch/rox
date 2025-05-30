@@ -11,6 +11,23 @@ macro_rules! parsing_error {
         return Node::new($tok.clone(), NodeType::Error);
     };
 }
+macro_rules! valid_infix_op {
+    () => {
+        TokenType::Plus
+            | TokenType::Minus
+            | TokenType::Star
+            | TokenType::Slash
+            | TokenType::Equal
+            | TokenType::Less
+            | TokenType::LessEqual
+            | TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::EqualEqual
+            | TokenType::BangEqual
+            | TokenType::And
+            | TokenType::Or
+    };
+}
 
 pub struct Parser<'a> {
     cur: usize,
@@ -91,19 +108,7 @@ impl<'a> Parser<'a> {
             let op = self.peek().clone();
             let op_type = op.token_type;
             let (lbp, rbp) = match op_type {
-                TokenType::Plus
-                | TokenType::Minus
-                | TokenType::Star
-                | TokenType::Slash
-                | TokenType::Equal
-                | TokenType::Less
-                | TokenType::LessEqual
-                | TokenType::Greater
-                | TokenType::GreaterEqual
-                | TokenType::EqualEqual
-                | TokenType::BangEqual
-                | TokenType::And
-                | TokenType::Or => infix_binding_power(op.token_type),
+                valid_infix_op!() => infix_binding_power(op.token_type),
                 TokenType::EOF | TokenType::Semicolon | TokenType::RightParen => break,
                 _ => {
                     parsing_error!(

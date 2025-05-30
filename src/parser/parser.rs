@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         let tok = self.next().clone();
         let lhs = match tok.token_type {
             TokenType::StringLiteral => {
-                NodeType::Literal(Value::StringLiteral(tok.lexeme.unwrap()))
+                NodeType::Constant(Value::StringLiteral(tok.lexeme.unwrap()))
             }
             TokenType::Identifier => NodeType::Var(tok.lexeme.unwrap()),
             TokenType::Minus | TokenType::Plus | TokenType::Bang => {
@@ -48,10 +48,14 @@ impl<'a> Parser<'a> {
                     operand: Box::new(operand),
                 })
             }
+            TokenType::True | TokenType::False => {
+                let parsed_bool: bool = tok.lexeme.unwrap().parse().unwrap();
+                NodeType::Constant(Value::Bool(parsed_bool))
+            }
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
                 let parsed_num = num_as_str.parse().unwrap();
-                NodeType::Literal(Value::Number(parsed_num))
+                NodeType::Constant(Value::Number(parsed_num))
             }
             TokenType::LeftParen => {
                 let group_expr = self.parse_expr(0);

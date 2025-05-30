@@ -55,7 +55,7 @@ pub enum NodeType<'a> {
     ///   true
     ///   nil
     ///   ```
-    Literal(Value<'a>),
+    Constant(Value<'a>),
 
     /// Variable identifier, containing the name of the identifier as a slice into the source code
     /// ```
@@ -126,7 +126,7 @@ impl<'a> NodeType<'a> {
         let indent = " ".repeat(next_level * 2);
 
         match self {
-            NodeType::Error => format!("{}Error: null", spaces),
+            NodeType::Error => format!("{}ERROR", spaces),
 
             NodeType::Var(var) => format!("{}Var: {}", spaces, var),
 
@@ -148,14 +148,14 @@ impl<'a> NodeType<'a> {
                 s.trim_end().to_string()
             }
 
-            NodeType::Literal(val) => {
+            NodeType::Constant(val) => {
                 let val_as_string = match val {
                     Value::StringLiteral(l) => format!("{}", l),
                     Value::Nil => "Nil".to_string(),
                     Value::Bool(b) => format!("{}", b),
                     Value::Number(n) => format!("{}", n),
                 };
-                format!("{}Literal: {}", spaces, val_as_string)
+                format!("{}Constant: {}", spaces, val_as_string)
             }
 
             NodeType::Unary(unary) => {

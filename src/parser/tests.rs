@@ -27,7 +27,7 @@ mod tests {
         let node = parser.parse();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node.node, NodeType::Literal(_)));
+        assert!(matches!(node.node, NodeType::Constant(_)));
     }
 
     #[test]
@@ -100,7 +100,7 @@ mod tests {
         match &node.node {
             NodeType::BinOp(bin) => {
                 assert!(matches!(bin.left.node, NodeType::Grouping(_)));
-                assert!(matches!(bin.right.node, NodeType::Literal(_)));
+                assert!(matches!(bin.right.node, NodeType::Constant(_)));
             }
             _ => panic!("Should be binop"),
         }
@@ -116,7 +116,7 @@ mod tests {
         match &node.node {
             NodeType::Unary(unary) => {
                 assert!(matches!(unary.op, TokenType::Minus));
-                assert!(matches!(unary.operand.node, NodeType::Literal(_)));
+                assert!(matches!(unary.operand.node, NodeType::Constant(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -180,6 +180,15 @@ mod tests {
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, NodeType::Assignment(_)));
-        println!("{}", node.node);
+    }
+
+    #[test]
+    fn parse_bool_expression() {
+        let tokens = scan("myBool = true;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::Assignment(_)));
     }
 }

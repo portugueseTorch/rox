@@ -191,4 +191,15 @@ mod tests {
         assert!(!parser.has_errors());
         assert!(matches!(node.node, NodeType::Assignment(_)));
     }
+
+    #[test]
+    fn parse_comparison_expression() {
+        let tokens = scan("true or false and 42;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+        node.log();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::BinOp(_)));
+    }
 }

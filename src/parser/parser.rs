@@ -95,7 +95,9 @@ impl<'a> Parser<'a> {
                 | TokenType::Minus
                 | TokenType::Star
                 | TokenType::Slash
-                | TokenType::Equal => infix_binding_power(op.token_type),
+                | TokenType::Equal
+                | TokenType::And
+                | TokenType::Or => infix_binding_power(op.token_type),
                 TokenType::EOF | TokenType::Semicolon | TokenType::RightParen => break,
                 _ => {
                     parsing_error!(
@@ -273,9 +275,11 @@ impl<'a> Parser<'a> {
 
 fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
     match token_type {
-        TokenType::Plus | TokenType::Minus => (10, 11),
-        TokenType::Star | TokenType::Slash => (20, 21),
         TokenType::Equal => (5, 6),
+        TokenType::Or => (7, 8),
+        TokenType::And => (9, 10),
+        TokenType::Plus | TokenType::Minus => (20, 21),
+        TokenType::Star | TokenType::Slash => (30, 31),
         _ => panic!("invalid infix token_type: '{}'", token_type),
     }
 }

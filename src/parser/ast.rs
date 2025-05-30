@@ -40,6 +40,10 @@ impl<'a> Node<'a> {
     pub fn new(token: Token<'a>, node: NodeType<'a>) -> Self {
         Self { token, node }
     }
+
+    pub fn log(&self) {
+        println!("{}", self.node);
+    }
 }
 
 pub enum NodeType<'a> {

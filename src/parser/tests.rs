@@ -193,8 +193,38 @@ mod tests {
     }
 
     #[test]
-    fn parse_comparison_expression() {
+    fn parse_logical_expression() {
         let tokens = scan("true or false and 42;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::BinOp(_)));
+    }
+
+    #[test]
+    fn parse_equality_expression() {
+        let tokens = scan("32 == 27;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::BinOp(_)));
+    }
+
+    #[test]
+    fn parse_equality_expression_2() {
+        let tokens = scan("32 != 27;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::BinOp(_)));
+    }
+
+    #[test]
+    fn parse_comparison_expression() {
+        let tokens = scan("32 >= 27 and 10 < 11 or 9 <= 6 and 8 > 2;");
         let mut parser = Parser::new(tokens);
         let node = parser.parse();
         node.log();

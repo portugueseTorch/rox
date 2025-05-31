@@ -23,6 +23,11 @@ pub struct CallExpr<'a> {
     pub args: Vec<Node<'a>>,
 }
 
+pub struct PropertyAccessExpr<'a> {
+    pub object: Box<Node<'a>>,
+    pub property: Token<'a>,
+}
+
 // --- may be subject to constant folding
 pub enum Value<'a> {
     StringLiteral(&'a str),
@@ -107,9 +112,17 @@ pub enum NodeType<'a> {
     ///   - first element of the tuple holds the node for the calle
     ///   - second element of the tuple holds a vector of args
     /// ```
-    /// obj.funcs.method(42)
+    /// method(42)
     /// ```
     Call(CallExpr<'a>),
+
+    /// Property access expression:
+    ///   - first element of the tuple holds the node for the calle
+    ///   - second element of the tuple holds a vector of args
+    /// ```
+    /// obj.property
+    /// ```
+    PropertyAccess(PropertyAccessExpr<'a>),
 
     /// Represents an error
     Error,
@@ -201,6 +214,17 @@ impl<'a> NodeType<'a> {
                     indent,
                     bin.right.node.to_yaml(next_level + 1)
                 );
+                s
+            }
+
+            NodeType::PropertyAccess(prop) => {
+                let mut s = format!("{}PropAccess:\n", spaces);
+                s += &format!(
+                    "{}Obj: '{}'\n",
+                    indent,
+                    prop.object.node.to_yaml(next_level + 1)
+                );
+                s += &format!("{}Prop:\n{}", indent, prop.property.lexeme.unwrap());
                 s
             }
         }

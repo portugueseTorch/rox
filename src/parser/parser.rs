@@ -157,6 +157,7 @@ impl<'a> Parser<'a> {
                         }),
                     )
                 }
+                TokenType::Dot => {}
                 _ => Node::new(
                     op,
                     NodeType::BinOp(BinaryExpr {
@@ -285,8 +286,18 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
-    match token_type {
+fn postfix_binding_power(token_type: TokenType) -> Option<(usize, ())> {
+    let res = match token_type {
+        TokenType::Dot => (41, ()),
+        TokenType::LeftParen => (51, ()),
+        _ => return None,
+    };
+
+    Some(res)
+}
+
+fn infix_binding_power(token_type: TokenType) -> Option<(usize, usize)> {
+    let res = match token_type {
         TokenType::Equal => (5, 6),
         TokenType::Or => (7, 8),
         TokenType::And => (9, 10),
@@ -296,9 +307,10 @@ fn infix_binding_power(token_type: TokenType) -> (usize, usize) {
         }
         TokenType::Plus | TokenType::Minus => (21, 22),
         TokenType::Star | TokenType::Slash => (31, 32),
-        TokenType::Dot => (41, 42),
-        _ => panic!("invalid infix token_type: '{}'", token_type),
-    }
+        _ => return None,
+    };
+
+    Some(res)
 }
 
 fn prefix_binding_power(token_type: TokenType) -> ((), usize) {

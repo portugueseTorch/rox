@@ -6,7 +6,7 @@ use crate::{
 use super::{
     ast::{Expr, ExprNode},
     expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
-    statements::{ForStmt, IfStmt, Stmt, WhileStmt},
+    statements::{ForStmt, IfStmt, Stmt, VarDeclStatement, WhileStmt},
 };
 
 macro_rules! parsing_error {
@@ -66,8 +66,39 @@ impl<'a> Parser<'a> {
             TokenType::If => self.parse_if(),
             TokenType::While => self.parse_while(),
             TokenType::For => self.parse_for(),
+            TokenType::Var => self.parse_var_decl(),
             _ => Stmt::Expression(self.parse_expression(expect_semicolon)),
         }
+    }
+
+    fn parse_var_decl(&mut self) -> Stmt<'a> {
+        self.next();
+
+        let var_name = self.next().clone();
+
+        // --- if the token is not an identifier, error
+        if !matches!(var_name.token_type, TokenType::Identifier) {
+            self.handle_error(
+                var_name.clone(),
+                format!(
+                    "unexpected token: expected 'IDENT' but got '{}'",
+                    var_name.token_type
+                ),
+            );
+
+            return Stmt::Error;
+        }
+
+        // --- parse initializer, if any
+        let mut initializer = None;
+        if self.matches(TokenType::Equal) {
+            initializer = Some(self.parse_expression(true));
+        }
+
+        Stmt::VarDecl(VarDeclStatement {
+            var_name,
+            initializer,
+        })
     }
 
     fn parse_for(&mut self) -> Stmt<'a> {

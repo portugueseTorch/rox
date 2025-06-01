@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::scanner::token::Token;
+
 use super::ast::ExprNode;
 
 pub struct IfStmt<'a> {
@@ -25,7 +27,7 @@ pub struct ForStmt<'a> {
 }
 
 pub struct VarDeclStatement<'a> {
-    pub var_name: ExprNode<'a>,
+    pub var_name: Token<'a>,
     pub initializer: Option<ExprNode<'a>>,
 }
 
@@ -55,6 +57,8 @@ pub enum Stmt<'a> {
     ///   - var name as an expression node
     ///   - optional initializer
     VarDecl(VarDeclStatement<'a>),
+
+    Error,
 }
 
 impl<'a> Stmt<'a> {
@@ -142,7 +146,7 @@ impl<'a> Stmt<'a> {
 
             Stmt::VarDecl(data) => {
                 let mut s = format!("{}VarDeclStmt:\n", spaces);
-                s += &format!("{}Var: {}", indent, data.var_name.token.lexeme.unwrap());
+                s += &format!("{}Var: {}", indent, data.var_name.lexeme.unwrap());
                 s += &format!(
                     "\n{}Initializer:\n{}",
                     indent,
@@ -154,6 +158,8 @@ impl<'a> Stmt<'a> {
                 );
                 s.trim_end().to_string()
             }
+
+            Stmt::Error => format!("{}ERROR", spaces),
         }
     }
 }
@@ -272,10 +278,25 @@ mod tests {
         );
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
-        statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);
         assert!(matches!(statements.get(0).unwrap(), Stmt::For(_)));
+    }
+
+    #[test]
+    fn parse_var_decl() {
+        let tokens = scan(
+            "
+            var myVar = 42 + 31 * 4;
+            ",
+        );
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+        statements.iter().for_each(|f| println!("{}", f));
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::VarDecl(_)));
     }
 }

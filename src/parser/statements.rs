@@ -24,6 +24,11 @@ pub struct ForStmt<'a> {
     pub body: Vec<Stmt<'a>>,
 }
 
+pub struct VarDeclStatement<'a> {
+    pub var_name: ExprNode<'a>,
+    pub initializer: Option<ExprNode<'a>>,
+}
+
 pub enum Stmt<'a> {
     /// Single expression
     Expression(ExprNode<'a>),
@@ -39,7 +44,17 @@ pub enum Stmt<'a> {
     ///   - body of the while loop
     While(WhileStmt<'a>),
 
+    /// For statement containing
+    ///   - initializer statement
+    ///   - condition
+    ///   - increment
+    ///   - body
     For(ForStmt<'a>),
+
+    /// Variable declaration
+    ///   - var name as an expression node
+    ///   - optional initializer
+    VarDecl(VarDeclStatement<'a>),
 }
 
 impl<'a> Stmt<'a> {
@@ -122,6 +137,21 @@ impl<'a> Stmt<'a> {
                 for stmt in data.body.iter() {
                     s += &format!("\n{}\n", stmt.to_yaml(next_level).trim_end());
                 }
+                s.trim_end().to_string()
+            }
+
+            Stmt::VarDecl(data) => {
+                let mut s = format!("{}VarDeclStmt:\n", spaces);
+                s += &format!("{}Var: {}", indent, data.var_name.token.lexeme.unwrap());
+                s += &format!(
+                    "\n{}Initializer:\n{}",
+                    indent,
+                    data.initializer
+                        .as_ref()
+                        .map_or(format!("{}  None", indent), |node| node
+                            .node
+                            .to_yaml(next_level + 1))
+                );
                 s.trim_end().to_string()
             }
         }

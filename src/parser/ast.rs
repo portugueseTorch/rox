@@ -2,47 +2,17 @@ use std::fmt::Display;
 
 use crate::scanner::token::{Token, TokenType};
 
-pub struct BinaryExpr<'a> {
-    pub op: TokenType,
-    pub left: Box<Node<'a>>,
-    pub right: Box<Node<'a>>,
-}
+use super::expressions::{
+    AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value,
+};
 
-pub struct UnaryExpr<'a> {
-    pub op: TokenType,
-    pub operand: Box<Node<'a>>,
-}
-
-pub struct AssignmentExpr<'a> {
-    pub name: Token<'a>,
-    pub expr: Box<Node<'a>>,
-}
-
-pub struct CallExpr<'a> {
-    pub calee: Box<Node<'a>>,
-    pub args: Vec<Node<'a>>,
-}
-
-pub struct PropertyAccessExpr<'a> {
-    pub object: Box<Node<'a>>,
-    pub property: Token<'a>,
-}
-
-// --- may be subject to constant folding
-pub enum Value<'a> {
-    StringLiteral(&'a str),
-    Number(i32),
-    Bool(bool),
-    Nil,
-}
-
-pub struct Node<'a> {
+pub struct Expr<'a> {
     pub token: Token<'a>,
-    pub node: NodeType<'a>,
+    pub node: ExprType<'a>,
 }
 
-impl<'a> Node<'a> {
-    pub fn new(token: Token<'a>, node: NodeType<'a>) -> Self {
+impl<'a> Expr<'a> {
+    pub fn new(token: Token<'a>, node: ExprType<'a>) -> Self {
         Self { token, node }
     }
 
@@ -51,7 +21,7 @@ impl<'a> Node<'a> {
     }
 }
 
-pub enum NodeType<'a> {
+pub enum ExprType<'a> {
     // --- expressions
     /// Literals, containing
     ///   - string literals as a slice into the source code
@@ -106,7 +76,7 @@ pub enum NodeType<'a> {
     /// ```
     /// (a + b)
     /// ```
-    Grouping(Box<Node<'a>>),
+    Grouping(Box<Expr<'a>>),
 
     /// Call expression:
     ///   - first element of the tuple holds the node for the calle
@@ -128,9 +98,9 @@ pub enum NodeType<'a> {
     Error,
 }
 
-impl<'a> NodeType<'a> {
+impl<'a> ExprType<'a> {
     pub fn is_error(&self) -> bool {
-        if matches!(self, NodeType::Error) {
+        if matches!(self, ExprType::Error) {
             return true;
         }
 
@@ -143,11 +113,11 @@ impl<'a> NodeType<'a> {
         let indent = " ".repeat(next_level * 2);
 
         match self {
-            NodeType::Error => format!("{}ERROR", spaces),
+            ExprType::Error => format!("{}ERROR", spaces),
 
-            NodeType::Var(var) => format!("{}Var: {}", spaces, var),
+            ExprType::Var(var) => format!("{}Var: {}", spaces, var),
 
-            NodeType::Call(call) => {
+            ExprType::Call(call) => {
                 let mut s = format!("{}Call:\n", spaces);
                 s += &format!(
                     "{}Calee:\n{}",
@@ -165,7 +135,7 @@ impl<'a> NodeType<'a> {
                 s.trim_end().to_string()
             }
 
-            NodeType::Constant(val) => {
+            ExprType::Constant(val) => {
                 let val_as_string = match val {
                     Value::StringLiteral(l) => format!("{}", l),
                     Value::Nil => "Nil".to_string(),
@@ -175,7 +145,7 @@ impl<'a> NodeType<'a> {
                 format!("{}Constant: {}", spaces, val_as_string)
             }
 
-            NodeType::Unary(unary) => {
+            ExprType::Unary(unary) => {
                 let mut s = format!("{}Unary:\n", spaces);
                 s += &format!("{}Op: '{}'\n", indent, unary.op);
                 s += &format!(
@@ -186,11 +156,11 @@ impl<'a> NodeType<'a> {
                 s
             }
 
-            NodeType::Grouping(expr) => {
+            ExprType::Grouping(expr) => {
                 format!("{}Group:\n{}", spaces, expr.node.to_yaml(next_level))
             }
 
-            NodeType::Assignment(a) => {
+            ExprType::Assignment(a) => {
                 let mut s = format!("{}Assignment:\n", spaces);
                 s += &format!(
                     "{}Name: {}\n",
@@ -201,7 +171,7 @@ impl<'a> NodeType<'a> {
                 s
             }
 
-            NodeType::BinOp(bin) => {
+            ExprType::BinOp(bin) => {
                 let mut s = format!("{}BinOp:\n", spaces);
                 s += &format!("{}Op: '{}'", indent, bin.op);
                 s += &format!(
@@ -217,7 +187,7 @@ impl<'a> NodeType<'a> {
                 s
             }
 
-            NodeType::PropertyAccess(prop) => {
+            ExprType::PropertyAccess(prop) => {
                 let mut s = format!("{}PropAccess:\n", spaces);
                 s += &format!(
                     "{}Obj:\n{}",
@@ -231,7 +201,7 @@ impl<'a> NodeType<'a> {
     }
 }
 
-impl<'a> Display for NodeType<'a> {
+impl<'a> Display for ExprType<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}\n", self.to_yaml(0))
     }

@@ -6,13 +6,13 @@ use super::expressions::{
     AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value,
 };
 
-pub struct Expr<'a> {
+pub struct ExprNode<'a> {
     pub token: Token<'a>,
-    pub node: ExprType<'a>,
+    pub node: Expr<'a>,
 }
 
-impl<'a> Expr<'a> {
-    pub fn new(token: Token<'a>, node: ExprType<'a>) -> Self {
+impl<'a> ExprNode<'a> {
+    pub fn new(token: Token<'a>, node: Expr<'a>) -> Self {
         Self { token, node }
     }
 
@@ -21,7 +21,13 @@ impl<'a> Expr<'a> {
     }
 }
 
-pub enum ExprType<'a> {
+impl<'a> Display for ExprNode<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.node)
+    }
+}
+
+pub enum Expr<'a> {
     // --- expressions
     /// Literals, containing
     ///   - string literals as a slice into the source code
@@ -76,7 +82,7 @@ pub enum ExprType<'a> {
     /// ```
     /// (a + b)
     /// ```
-    Grouping(Box<Expr<'a>>),
+    Grouping(Box<ExprNode<'a>>),
 
     /// Call expression:
     ///   - first element of the tuple holds the node for the calle
@@ -98,26 +104,26 @@ pub enum ExprType<'a> {
     Error,
 }
 
-impl<'a> ExprType<'a> {
+impl<'a> Expr<'a> {
     pub fn is_error(&self) -> bool {
-        if matches!(self, ExprType::Error) {
+        if matches!(self, Expr::Error) {
             return true;
         }
 
         false
     }
 
-    fn to_yaml(&self, level: usize) -> String {
+    pub fn to_yaml(&self, level: usize) -> String {
         let spaces = " ".repeat(level * 2);
         let next_level = level + 1;
         let indent = " ".repeat(next_level * 2);
 
         match self {
-            ExprType::Error => format!("{}ERROR", spaces),
+            Expr::Error => format!("{}ERROR", spaces),
 
-            ExprType::Var(var) => format!("{}Var: {}", spaces, var),
+            Expr::Var(var) => format!("{}Var: {}", spaces, var),
 
-            ExprType::Call(call) => {
+            Expr::Call(call) => {
                 let mut s = format!("{}Call:\n", spaces);
                 s += &format!(
                     "{}Calee:\n{}",
@@ -135,7 +141,7 @@ impl<'a> ExprType<'a> {
                 s.trim_end().to_string()
             }
 
-            ExprType::Constant(val) => {
+            Expr::Constant(val) => {
                 let val_as_string = match val {
                     Value::StringLiteral(l) => format!("{}", l),
                     Value::Nil => "Nil".to_string(),
@@ -145,7 +151,7 @@ impl<'a> ExprType<'a> {
                 format!("{}Constant: {}", spaces, val_as_string)
             }
 
-            ExprType::Unary(unary) => {
+            Expr::Unary(unary) => {
                 let mut s = format!("{}Unary:\n", spaces);
                 s += &format!("{}Op: '{}'\n", indent, unary.op);
                 s += &format!(
@@ -156,11 +162,11 @@ impl<'a> ExprType<'a> {
                 s
             }
 
-            ExprType::Grouping(expr) => {
+            Expr::Grouping(expr) => {
                 format!("{}Group:\n{}", spaces, expr.node.to_yaml(next_level))
             }
 
-            ExprType::Assignment(a) => {
+            Expr::Assignment(a) => {
                 let mut s = format!("{}Assignment:\n", spaces);
                 s += &format!(
                     "{}Name: {}\n",
@@ -171,7 +177,7 @@ impl<'a> ExprType<'a> {
                 s
             }
 
-            ExprType::BinOp(bin) => {
+            Expr::BinOp(bin) => {
                 let mut s = format!("{}BinOp:\n", spaces);
                 s += &format!("{}Op: '{}'", indent, bin.op);
                 s += &format!(
@@ -187,7 +193,7 @@ impl<'a> ExprType<'a> {
                 s
             }
 
-            ExprType::PropertyAccess(prop) => {
+            Expr::PropertyAccess(prop) => {
                 let mut s = format!("{}PropAccess:\n", spaces);
                 s += &format!(
                     "{}Obj:\n{}",
@@ -201,7 +207,7 @@ impl<'a> ExprType<'a> {
     }
 }
 
-impl<'a> Display for ExprType<'a> {
+impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}\n", self.to_yaml(0))
     }

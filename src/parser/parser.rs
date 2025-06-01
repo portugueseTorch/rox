@@ -3,14 +3,16 @@ use crate::{
     scanner::token::{Token, TokenType},
 };
 
-use super::ast::{
-    AssignmentExpr, BinaryExpr, CallExpr, Expr, ExprType, PropertyAccessExpr, UnaryExpr, Value,
+use super::{
+    ast::{Expr, ExprNode},
+    expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
+    statements::{IfStmt, Stmt},
 };
 
 macro_rules! parsing_error {
     ($parser:expr, $tok:expr, $msg:expr) => {
         $parser.handle_error($tok.clone(), $msg);
-        return Node::new($tok.clone(), NodeType::Error);
+        return ExprNode::new($tok.clone(), Expr::Error);
     };
 }
 macro_rules! valid_infix_op {
@@ -48,7 +50,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> Vec<Expr<'a>> {
+    pub fn parse(&mut self) -> Vec<Stmt<'a>> {
         let mut statements = vec![];
         while !self.is_at_end() {
             let stmt = self.parse_statement();
@@ -58,23 +60,17 @@ impl<'a> Parser<'a> {
         statements
     }
 
-    fn parse_statement(&mut self) -> Expr<'a> {
+    fn parse_statement(&mut self) -> Stmt<'a> {
         // --- match on token type
-        let cur_tok = self.next().clone();
-        let token_type = cur_tok.token_type;
-
-        match token_type {
-            TokenType::If => {
-                unimplemented!("parse if")
-            }
-            TokenType::Else => {
-                unimplemented!("parse else")
-            }
-            _ => self.parse_expression(),
+        match self.peek().token_type {
+            TokenType::If => self.parse_if(),
+            _ => Stmt::Expression(self.parse_expression()),
         }
     }
 
-    fn parse_if(&mut self) -> Expr<'a> {
+    fn parse_if(&mut self) -> Stmt<'a> {
+        self.next();
+
         // --- expect next token to be left paren
         self.expect(TokenType::LeftParen);
 
@@ -84,37 +80,66 @@ impl<'a> Parser<'a> {
         // --- expect next token to be a right paren followed by a left brace
         self.expect(TokenType::RightParen);
         self.expect(TokenType::LeftBrace);
+
+        // --- parse if body
+        let mut if_body = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+            let stmt = self.parse_statement();
+            if_body.push(stmt);
+        }
+
+        // --- expect a curly brace on the right
+        self.expect(TokenType::RightBrace);
+
+        // --- check presence of else block
+        let mut else_body = vec![];
+        if self.matches(TokenType::Else) {
+            // --- expecte next token to be a left brace
+            self.expect(TokenType::LeftBrace);
+
+            while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+                let stmt = self.parse_statement();
+                else_body.push(stmt);
+            }
+
+            // --- expect a curly brace on the right
+            self.expect(TokenType::RightBrace);
+        }
+
+        Stmt::If(IfStmt {
+            condition,
+            if_body,
+            else_body,
+        })
     }
 
-    pub fn parse_expression(&mut self) -> Expr<'a> {
+    pub fn parse_expression(&mut self) -> ExprNode<'a> {
         let expr = self.parse_expr(0);
         self.expect(TokenType::Semicolon);
         expr
     }
 
-    fn parse_expr(&mut self, bp: usize) -> Expr<'a> {
+    fn parse_expr(&mut self, bp: usize) -> ExprNode<'a> {
         let tok = self.next().clone();
         let lhs = match tok.token_type {
-            TokenType::StringLiteral => {
-                ExprType::Constant(Value::StringLiteral(tok.lexeme.unwrap()))
-            }
-            TokenType::Identifier => ExprType::Var(tok.lexeme.unwrap()),
+            TokenType::StringLiteral => Expr::Constant(Value::StringLiteral(tok.lexeme.unwrap())),
+            TokenType::Identifier => Expr::Var(tok.lexeme.unwrap()),
             TokenType::Minus | TokenType::Plus | TokenType::Bang => {
                 let (_, rbp) = prefix_binding_power(tok.token_type);
                 let operand = self.parse_expr(rbp);
-                ExprType::Unary(UnaryExpr {
+                Expr::Unary(UnaryExpr {
                     op: tok.token_type,
                     operand: Box::new(operand),
                 })
             }
             TokenType::True | TokenType::False => {
                 let parsed_bool: bool = tok.lexeme.unwrap().parse().unwrap();
-                ExprType::Constant(Value::Bool(parsed_bool))
+                Expr::Constant(Value::Bool(parsed_bool))
             }
             TokenType::Number => {
                 let num_as_str = tok.lexeme.unwrap();
                 let parsed_num = num_as_str.parse().unwrap();
-                ExprType::Constant(Value::Number(parsed_num))
+                Expr::Constant(Value::Number(parsed_num))
             }
             TokenType::LeftParen => {
                 let group_expr = self.parse_expr(0);
@@ -129,9 +154,9 @@ impl<'a> Parser<'a> {
                     );
                 }
 
-                ExprType::Grouping(Box::new(group_expr))
+                Expr::Grouping(Box::new(group_expr))
             }
-            _ => ExprType::Error,
+            _ => Expr::Error,
         };
 
         // --- on error, return
@@ -144,7 +169,7 @@ impl<'a> Parser<'a> {
         }
 
         // --- build AST node
-        let mut lhs = Expr::new(tok.clone(), lhs);
+        let mut lhs = ExprNode::new(tok.clone(), lhs);
 
         loop {
             let op = self.peek().clone();
@@ -188,16 +213,21 @@ impl<'a> Parser<'a> {
         lhs
     }
 
-    fn parse_postfix_expression(&mut self, bp: usize, lhs: Expr<'a>, op: Token<'a>) -> Expr<'a> {
+    fn parse_postfix_expression(
+        &mut self,
+        bp: usize,
+        lhs: ExprNode<'a>,
+        op: Token<'a>,
+    ) -> ExprNode<'a> {
         self.next();
 
         match &op.token_type {
             TokenType::Dot => {
                 let rhs = self.parse_expr(bp);
 
-                Expr::new(
+                ExprNode::new(
                     op.clone(),
-                    ExprType::PropertyAccess(PropertyAccessExpr {
+                    Expr::PropertyAccess(PropertyAccessExpr {
                         object: Box::new(lhs),
                         property: rhs.token,
                     }),
@@ -218,9 +248,9 @@ impl<'a> Parser<'a> {
                 // --- on exit, we should have a right paren for a correct function call
                 self.expect(TokenType::RightParen);
 
-                Expr::new(
+                ExprNode::new(
                     op.clone(),
-                    ExprType::Call(CallExpr {
+                    Expr::Call(CallExpr {
                         calee: Box::new(lhs),
                         args,
                     }),
@@ -230,7 +260,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_infix_expression(&mut self, bp: usize, lhs: Expr<'a>, op: Token<'a>) -> Expr<'a> {
+    fn parse_infix_expression(
+        &mut self,
+        bp: usize,
+        lhs: ExprNode<'a>,
+        op: Token<'a>,
+    ) -> ExprNode<'a> {
         // --- parse right hand side
         self.next();
         let rhs = self.parse_expr(bp);
@@ -240,12 +275,12 @@ impl<'a> Parser<'a> {
         match &op.token_type {
             TokenType::Equal => {
                 // --- left hand side needs to be an identifier
-                if !matches!(lhs.node, ExprType::Var(_)) {
+                if !matches!(lhs.node, Expr::Var(_)) {
                     parsing_error!(self, lhs.token, "invalid variable assignment".to_string());
                 }
 
                 // --- if the right hand side is an assignment, this is also invalid
-                if matches!(rhs.node, ExprType::Assignment(_)) {
+                if matches!(rhs.node, Expr::Assignment(_)) {
                     parsing_error!(
                         self,
                         lhs.token,
@@ -253,17 +288,17 @@ impl<'a> Parser<'a> {
                     );
                 }
 
-                Expr::new(
+                ExprNode::new(
                     op.clone(),
-                    ExprType::Assignment(AssignmentExpr {
+                    Expr::Assignment(AssignmentExpr {
                         name: lhs.token,
                         expr: Box::new(rhs),
                     }),
                 )
             }
-            _ => Expr::new(
+            _ => ExprNode::new(
                 op,
-                ExprType::BinOp(BinaryExpr {
+                Expr::BinOp(BinaryExpr {
                     left: Box::new(lhs),
                     right: Box::new(rhs),
                     op: token_type,
@@ -302,7 +337,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_at_end(&self) -> bool {
-        self.cur >= self.tokens.len()
+        matches!(self.peek().token_type, TokenType::EOF)
     }
 
     /// Returns a reference to the previous token, if any

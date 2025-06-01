@@ -1,30 +1,30 @@
 use crate::scanner::token::{Token, TokenType};
 
-use super::ast::{Expr, ExprType};
+use super::ast::{Expr, ExprNode};
 
 pub struct BinaryExpr<'a> {
     pub op: TokenType,
-    pub left: Box<Expr<'a>>,
-    pub right: Box<Expr<'a>>,
+    pub left: Box<ExprNode<'a>>,
+    pub right: Box<ExprNode<'a>>,
 }
 
 pub struct UnaryExpr<'a> {
     pub op: TokenType,
-    pub operand: Box<Expr<'a>>,
+    pub operand: Box<ExprNode<'a>>,
 }
 
 pub struct AssignmentExpr<'a> {
     pub name: Token<'a>,
-    pub expr: Box<Expr<'a>>,
+    pub expr: Box<ExprNode<'a>>,
 }
 
 pub struct CallExpr<'a> {
-    pub calee: Box<Expr<'a>>,
-    pub args: Vec<Expr<'a>>,
+    pub calee: Box<ExprNode<'a>>,
+    pub args: Vec<ExprNode<'a>>,
 }
 
 pub struct PropertyAccessExpr<'a> {
-    pub object: Box<Expr<'a>>,
+    pub object: Box<ExprNode<'a>>,
     pub property: Token<'a>,
 }
 
@@ -39,7 +39,7 @@ pub enum Value<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{ast::ExprType, parser::Parser},
+        parser::{ast::Expr, parser::Parser},
         scanner::{
             scanner::Scanner,
             token::{Token, TokenType},
@@ -65,7 +65,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node.node, ExprType::Constant(_)));
+        assert!(matches!(node.node, Expr::Constant(_)));
     }
 
     #[test]
@@ -75,7 +75,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node.node, ExprType::Var(_)));
+        assert!(matches!(node.node, Expr::Var(_)));
     }
 
     #[test]
@@ -85,7 +85,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -95,7 +95,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -111,8 +111,8 @@ mod tests {
         );
 
         match &node.node {
-            ExprType::BinOp(bin) => {
-                assert!(matches!(bin.right.node, ExprType::Error))
+            Expr::BinOp(bin) => {
+                assert!(matches!(bin.right.node, Expr::Error))
             }
             _ => panic!("Should be binop"),
         }
@@ -126,9 +126,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node.node {
-            ExprType::BinOp(bin) => {
-                assert!(matches!(bin.left.node, ExprType::Grouping(_)));
-                assert!(matches!(bin.right.node, ExprType::Constant(_)));
+            Expr::BinOp(bin) => {
+                assert!(matches!(bin.left.node, Expr::Grouping(_)));
+                assert!(matches!(bin.right.node, Expr::Constant(_)));
             }
             _ => panic!("Should be binop"),
         }
@@ -142,9 +142,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node.node {
-            ExprType::Unary(unary) => {
+            Expr::Unary(unary) => {
                 assert!(matches!(unary.op, TokenType::Minus));
-                assert!(matches!(unary.operand.node, ExprType::Constant(_)));
+                assert!(matches!(unary.operand.node, Expr::Constant(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -158,9 +158,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node.node {
-            ExprType::Unary(unary) => {
+            Expr::Unary(unary) => {
                 assert!(matches!(unary.op, TokenType::Minus));
-                assert!(matches!(unary.operand.node, ExprType::Unary(_)));
+                assert!(matches!(unary.operand.node, Expr::Unary(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -174,9 +174,9 @@ mod tests {
 
         assert!(!parser.has_errors());
         match &node.node {
-            ExprType::Unary(unary) => {
+            Expr::Unary(unary) => {
                 assert!(matches!(unary.op, TokenType::Minus));
-                assert!(matches!(unary.operand.node, ExprType::Grouping(_)));
+                assert!(matches!(unary.operand.node, Expr::Grouping(_)));
             }
             _ => panic!("Should be unary"),
         }
@@ -197,7 +197,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::Assignment(_)));
+        assert!(matches!(node.node, Expr::Assignment(_)));
     }
 
     #[test]
@@ -207,7 +207,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -227,7 +227,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -237,7 +237,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::BinOp(_)));
+        assert!(matches!(node.node, Expr::BinOp(_)));
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::PropertyAccess(_)));
+        assert!(matches!(node.node, Expr::PropertyAccess(_)));
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::Call(_)));
+        assert!(matches!(node.node, Expr::Call(_)));
     }
 
     #[test]
@@ -267,7 +267,7 @@ mod tests {
         let node = parser.parse_expression();
 
         assert!(!parser.has_errors());
-        assert!(matches!(node.node, ExprType::Call(_)));
+        assert!(matches!(node.node, Expr::Call(_)));
     }
 
     #[test]

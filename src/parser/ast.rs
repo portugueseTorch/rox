@@ -154,12 +154,12 @@ impl<'a> NodeType<'a> {
                     indent,
                     call.calee.node.to_yaml(next_level + 1)
                 );
-                s += &format!("{}Args:\n", indent);
+                s += &format!("\n{}Args:", indent);
                 for arg in call.args.iter() {
                     s += &format!(
-                        "{}- {}\n",
-                        " ".repeat((next_level + 1) * 2),
-                        arg.node.to_yaml(next_level + 2).trim_end()
+                        "\n  {}- {}\n",
+                        indent,
+                        arg.node.to_yaml(next_level).trim_end()
                     );
                 }
                 s.trim_end().to_string()
@@ -220,11 +220,11 @@ impl<'a> NodeType<'a> {
             NodeType::PropertyAccess(prop) => {
                 let mut s = format!("{}PropAccess:\n", spaces);
                 s += &format!(
-                    "{}Obj: '{}'\n",
+                    "{}Obj:\n{}",
                     indent,
                     prop.object.node.to_yaml(next_level + 1)
                 );
-                s += &format!("{}Prop:\n{}", indent, prop.property.lexeme.unwrap());
+                s += &format!("\n{}Prop: {}", indent, prop.property.lexeme.unwrap());
                 s
             }
         }

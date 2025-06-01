@@ -3,7 +3,9 @@ use crate::{
     scanner::token::{Token, TokenType},
 };
 
-use super::ast::{AssignmentExpr, BinaryExpr, Node, NodeType, UnaryExpr, Value};
+use super::ast::{
+    AssignmentExpr, BinaryExpr, CallExpr, Node, NodeType, PropertyAccessExpr, UnaryExpr, Value,
+};
 
 macro_rules! parsing_error {
     ($parser:expr, $tok:expr, $msg:expr) => {
@@ -27,6 +29,7 @@ macro_rules! valid_infix_op {
             | TokenType::And
             | TokenType::Or
             | TokenType::Dot
+            | TokenType::LeftParen
     };
 }
 
@@ -107,10 +110,12 @@ impl<'a> Parser<'a> {
 
         loop {
             let op = self.peek().clone();
-            let op_type = op.token_type;
-            let (lbp, rbp) = match op_type {
-                valid_infix_op!() => infix_binding_power(op.token_type),
-                TokenType::EOF | TokenType::Semicolon | TokenType::RightParen => break,
+            let op_type = match op.token_type {
+                valid_infix_op!() => op.token_type,
+                TokenType::EOF
+                | TokenType::Semicolon
+                | TokenType::RightParen
+                | TokenType::Comma => break,
                 _ => {
                     parsing_error!(
                         self,
@@ -123,53 +128,110 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            // --- if the left binding power of the operator is lower, break
-            if lbp < bp {
-                break;
+            // --- parse postfix expression, if appropriate
+            if let Some((lbp, _)) = postfix_binding_power(op_type) {
+                if lbp < bp {
+                    break;
+                }
+
+                lhs = self.parse_postfix_expression(lbp, lhs, op.clone());
             }
 
-            // --- parse right hand side
-            self.next();
-            let rhs = self.parse_expr(rbp);
-
-            // --- emit ast node based on the type of the operator
-            lhs = match op_type {
-                TokenType::Equal => {
-                    // --- left hand side needs to be an identifier
-                    if !matches!(lhs.node, NodeType::Var(_)) {
-                        parsing_error!(self, lhs.token, "invalid variable assignment".to_string());
-                    }
-
-                    // --- if the right hand side is an assignment, this is also invalid
-                    if matches!(rhs.node, NodeType::Assignment(_)) {
-                        parsing_error!(
-                            self,
-                            lhs.token,
-                            "invalid chaining of assignments".to_string()
-                        );
-                    }
-
-                    Node::new(
-                        op,
-                        NodeType::Assignment(AssignmentExpr {
-                            name: lhs.token,
-                            expr: Box::new(rhs),
-                        }),
-                    )
+            // --- parse infix expression, if appropriate
+            if let Some((lbp, rbp)) = infix_binding_power(op_type) {
+                if lbp < bp {
+                    break;
                 }
-                TokenType::Dot => {}
-                _ => Node::new(
-                    op,
-                    NodeType::BinOp(BinaryExpr {
-                        left: Box::new(lhs),
-                        right: Box::new(rhs),
-                        op: op_type,
-                    }),
-                ),
-            };
+
+                lhs = self.parse_infix_expression(rbp, lhs, op.clone());
+            }
         }
 
         lhs
+    }
+
+    fn parse_postfix_expression(&mut self, bp: usize, lhs: Node<'a>, op: Token<'a>) -> Node<'a> {
+        self.next();
+
+        match &op.token_type {
+            TokenType::Dot => {
+                let rhs = self.parse_expr(bp);
+
+                Node::new(
+                    op.clone(),
+                    NodeType::PropertyAccess(PropertyAccessExpr {
+                        object: Box::new(lhs),
+                        property: rhs.token,
+                    }),
+                )
+            }
+            TokenType::LeftParen => {
+                // --- while we are not at the end and current token is not a right brace, keep parsing
+                let mut args = vec![];
+                while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightParen)
+                {
+                    let expr = self.parse_expr(0);
+                    args.push(expr);
+
+                    // --- if the current token is a comma, advance
+                    self.matches(TokenType::Comma);
+                }
+
+                // --- on exit, we should have a right paren for a correct function call
+                self.expect(TokenType::RightParen);
+
+                Node::new(
+                    op.clone(),
+                    NodeType::Call(CallExpr {
+                        calee: Box::new(lhs),
+                        args,
+                    }),
+                )
+            }
+            _ => panic!("Invalid postfix operator"),
+        }
+    }
+
+    fn parse_infix_expression(&mut self, bp: usize, lhs: Node<'a>, op: Token<'a>) -> Node<'a> {
+        // --- parse right hand side
+        self.next();
+        let rhs = self.parse_expr(bp);
+        let token_type = op.token_type;
+
+        // --- emit ast node based on the type of the operator
+        match &op.token_type {
+            TokenType::Equal => {
+                // --- left hand side needs to be an identifier
+                if !matches!(lhs.node, NodeType::Var(_)) {
+                    parsing_error!(self, lhs.token, "invalid variable assignment".to_string());
+                }
+
+                // --- if the right hand side is an assignment, this is also invalid
+                if matches!(rhs.node, NodeType::Assignment(_)) {
+                    parsing_error!(
+                        self,
+                        lhs.token,
+                        "invalid chaining of assignments".to_string()
+                    );
+                }
+
+                Node::new(
+                    op.clone(),
+                    NodeType::Assignment(AssignmentExpr {
+                        name: lhs.token,
+                        expr: Box::new(rhs),
+                    }),
+                )
+            }
+            _ => Node::new(
+                op,
+                NodeType::BinOp(BinaryExpr {
+                    left: Box::new(lhs),
+                    right: Box::new(rhs),
+                    op: token_type,
+                }),
+            ),
+        }
     }
 
     pub fn has_errors(&self) -> bool {
@@ -288,8 +350,8 @@ impl<'a> Parser<'a> {
 
 fn postfix_binding_power(token_type: TokenType) -> Option<(usize, ())> {
     let res = match token_type {
-        TokenType::Dot => (41, ()),
-        TokenType::LeftParen => (51, ()),
+        TokenType::LeftParen => (41, ()),
+        TokenType::Dot => (51, ()),
         _ => return None,
     };
 

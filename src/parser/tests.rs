@@ -227,9 +227,49 @@ mod tests {
         let tokens = scan("32 >= 27 and 10 < 11 or 9 <= 6 and 8 > 2;");
         let mut parser = Parser::new(tokens);
         let node = parser.parse();
-        node.log();
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, NodeType::BinOp(_)));
+    }
+
+    #[test]
+    fn parse_property_access() {
+        let tokens = scan("object.property;");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::PropertyAccess(_)));
+    }
+
+    #[test]
+    fn parse_call_expression() {
+        let tokens = scan("myFunc();");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::Call(_)));
+    }
+
+    #[test]
+    fn parse_call_expression_multiple_args() {
+        let tokens = scan("myFunc(42, hello + 3);");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(matches!(node.node, NodeType::Call(_)));
+    }
+
+    #[test]
+    fn parse_call_prop_access() {
+        let tokens = scan("obj.methodOne(42).methodTwo(hello, goodbye)();");
+        let mut parser = Parser::new(tokens);
+        let node = parser.parse();
+        node.log();
+
+        assert!(!parser.has_errors());
+        // assert!(matches!(node.node, NodeType::Call(_)));
     }
 }

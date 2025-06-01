@@ -6,7 +6,7 @@ use crate::{
 use super::{
     ast::{Expr, ExprNode},
     expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
-    statements::{IfStmt, Stmt},
+    statements::{ForStmt, IfStmt, Stmt, WhileStmt},
 };
 
 macro_rules! parsing_error {
@@ -53,19 +53,93 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Vec<Stmt<'a>> {
         let mut statements = vec![];
         while !self.is_at_end() {
-            let stmt = self.parse_statement();
+            let stmt = self.parse_statement(false);
             statements.push(stmt);
         }
 
         statements
     }
 
-    fn parse_statement(&mut self) -> Stmt<'a> {
+    fn parse_statement(&mut self, expect_semicolon: bool) -> Stmt<'a> {
         // --- match on token type
         match self.peek().token_type {
             TokenType::If => self.parse_if(),
-            _ => Stmt::Expression(self.parse_expression()),
+            TokenType::While => self.parse_while(),
+            TokenType::For => self.parse_for(),
+            _ => Stmt::Expression(self.parse_expression(expect_semicolon)),
         }
+    }
+
+    fn parse_for(&mut self) -> Stmt<'a> {
+        self.next();
+
+        // --- expect next token to be left paren
+        self.expect(TokenType::LeftParen);
+
+        // --- try to parse initializer
+        let mut initializer = None;
+        if !matches!(self.peek().token_type, TokenType::Semicolon) {
+            initializer = Some(Box::new(self.parse_statement(false)));
+        }
+        // --- expect next token to be semicolon
+        self.expect(TokenType::Semicolon);
+
+        // --- try to parse condition
+        let mut condition = None;
+        if !matches!(self.peek().token_type, TokenType::Semicolon) {
+            condition = Some(self.parse_expr(0));
+        }
+        // --- expect next token to be semicolon
+        self.expect(TokenType::Semicolon);
+
+        // --- try to parse increment
+        let mut increment = None;
+        if !matches!(self.peek().token_type, TokenType::RightParen) {
+            increment = Some(self.parse_expr(0));
+        }
+        // --- expect next token to be semicolon followed by ')' and '{'
+        self.expect(TokenType::RightParen);
+        self.expect(TokenType::LeftBrace);
+
+        let mut body = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+            let stmt = self.parse_statement(true);
+            body.push(stmt);
+        }
+
+        self.expect(TokenType::RightBrace);
+
+        Stmt::For(ForStmt {
+            initializer,
+            condition,
+            increment,
+            body,
+        })
+    }
+
+    fn parse_while(&mut self) -> Stmt<'a> {
+        self.next();
+
+        // --- expect next token to be left paren
+        self.expect(TokenType::LeftParen);
+
+        // --- parse if expression
+        let condition = self.parse_expr(0);
+
+        // --- expect next token to be a right paren followed by a left brace
+        self.expect(TokenType::RightParen);
+        self.expect(TokenType::LeftBrace);
+
+        let mut body = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+            let stmt = self.parse_statement(true);
+            body.push(stmt);
+        }
+
+        // --- expect a curly brace on the right
+        self.expect(TokenType::RightBrace);
+
+        Stmt::While(WhileStmt { condition, body })
     }
 
     fn parse_if(&mut self) -> Stmt<'a> {
@@ -84,7 +158,7 @@ impl<'a> Parser<'a> {
         // --- parse if body
         let mut if_body = vec![];
         while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
-            let stmt = self.parse_statement();
+            let stmt = self.parse_statement(true);
             if_body.push(stmt);
         }
 
@@ -98,7 +172,7 @@ impl<'a> Parser<'a> {
             self.expect(TokenType::LeftBrace);
 
             while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
-                let stmt = self.parse_statement();
+                let stmt = self.parse_statement(true);
                 else_body.push(stmt);
             }
 
@@ -113,9 +187,11 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_expression(&mut self) -> ExprNode<'a> {
+    pub fn parse_expression(&mut self, expect_semicolon: bool) -> ExprNode<'a> {
         let expr = self.parse_expr(0);
-        self.expect(TokenType::Semicolon);
+        if expect_semicolon {
+            self.expect(TokenType::Semicolon);
+        }
         expr
     }
 

@@ -9,6 +9,21 @@ pub struct IfStmt<'a> {
     pub else_body: Vec<Stmt<'a>>,
 }
 
+pub struct WhileStmt<'a> {
+    pub condition: ExprNode<'a>,
+    pub body: Vec<Stmt<'a>>,
+}
+
+pub struct ForStmt<'a> {
+    /// optional initializer for the loop
+    pub initializer: Option<Box<Stmt<'a>>>,
+    /// optional condition for loop stoppage
+    pub condition: Option<ExprNode<'a>>,
+    /// optional incrementer
+    pub increment: Option<ExprNode<'a>>,
+    pub body: Vec<Stmt<'a>>,
+}
+
 pub enum Stmt<'a> {
     /// Single expression
     Expression(ExprNode<'a>),
@@ -18,12 +33,20 @@ pub enum Stmt<'a> {
     ///   - list of expressions for the if body
     ///   - list of expressions for the else body (if any)
     If(IfStmt<'a>),
+
+    /// While statement containing
+    ///   - expression for ending the loop
+    ///   - body of the while loop
+    While(WhileStmt<'a>),
+
+    For(ForStmt<'a>),
 }
 
 impl<'a> Stmt<'a> {
     pub fn log(&self) {
         println!("{}", self);
     }
+
     fn to_yaml(&self, level: usize) -> String {
         let spaces = " ".repeat(level * 2);
         let next_level = level + 1;
@@ -31,7 +54,7 @@ impl<'a> Stmt<'a> {
 
         match self {
             Stmt::If(data) => {
-                let mut s = format!("{}IfCondition:\n", spaces);
+                let mut s = format!("{}IfStmt:\n", spaces);
                 s += &format!(
                     "{}Condition:\n{}",
                     indent,
@@ -53,6 +76,54 @@ impl<'a> Stmt<'a> {
             Stmt::Expression(expr) => {
                 format!("{}", expr.node.to_yaml(next_level).trim_end())
             }
+
+            Stmt::While(data) => {
+                let mut s = format!("{}WhileStmt:\n", spaces);
+                s += &format!(
+                    "{}Condition:\n{}",
+                    indent,
+                    data.condition.node.to_yaml(next_level + 1)
+                );
+                s += &format!("\n{}Body:", indent);
+                for stmt in data.body.iter() {
+                    s += &format!("\n{}\n", stmt.to_yaml(next_level).trim_end());
+                }
+                s.trim_end().to_string()
+            }
+
+            Stmt::For(data) => {
+                let mut s = format!("{}ForStmt:\n", spaces);
+                s += &format!(
+                    "{}Initializer:\n{}",
+                    indent,
+                    data.initializer
+                        .as_ref()
+                        .map_or(format!("{}  None", indent), |node| node.to_yaml(next_level))
+                );
+                s += &format!(
+                    "\n{}Condition:\n{}",
+                    indent,
+                    data.condition
+                        .as_ref()
+                        .map_or(format!("{}  None", indent), |node| node
+                            .node
+                            .to_yaml(next_level + 1))
+                );
+                s += &format!(
+                    "\n{}Increment:\n{}",
+                    indent,
+                    data.increment
+                        .as_ref()
+                        .map_or(format!("{}  None", indent), |node| node
+                            .node
+                            .to_yaml(next_level + 1))
+                );
+                s += &format!("\n{}Body:", indent);
+                for stmt in data.body.iter() {
+                    s += &format!("\n{}\n", stmt.to_yaml(next_level).trim_end());
+                }
+                s.trim_end().to_string()
+            }
         }
     }
 }
@@ -66,7 +137,7 @@ impl<'a> Display for Stmt<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{ast::Expr, parser::Parser},
+        parser::{ast::Expr, parser::Parser, statements::Stmt},
         scanner::{
             scanner::Scanner,
             token::{Token, TokenType},
@@ -104,9 +175,77 @@ mod tests {
         );
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::If(_)));
+    }
+
+    #[test]
+    fn parse_while() {
+        let tokens = scan(
+            "
+            while (i < 10) {
+                i = i + 1;
+            }",
+        );
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::While(_)));
+    }
+
+    #[test]
+    fn parse_for() {
+        let tokens = scan(
+            "
+            for (i = 1; i < 10; i = i + 1) {
+                42 + a;
+            }
+            ",
+        );
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::For(_)));
+    }
+
+    #[test]
+    fn parse_for_empty() {
+        let tokens = scan(
+            "
+            for (;;) {
+                42 + a;
+            }
+            ",
+        );
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::For(_)));
+    }
+
+    #[test]
+    fn parse_for_first_empty() {
+        let tokens = scan(
+            "
+            for (;i < 10; i = i + 1) {
+                42 + a;
+            }
+            ",
+        );
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
         statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::For(_)));
     }
 }

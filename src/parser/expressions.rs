@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(it.next().unwrap().token_type, TokenType::EOF);
 
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
         assert!(matches!(node.node, Expr::Constant(_)));
@@ -72,7 +72,7 @@ mod tests {
     fn parse_identifier() {
         let tokens = scan("myVar;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
         assert!(matches!(node.node, Expr::Var(_)));
@@ -82,7 +82,7 @@ mod tests {
     fn parse_binop() {
         let tokens = scan("2 + 3;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -92,7 +92,7 @@ mod tests {
     fn parse_complex_binop() {
         let tokens = scan("2 + 3 * 4 + 5 * 6;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert_eq!(parser.has_errors(), false, "Should not have parsing errors");
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -102,7 +102,7 @@ mod tests {
     fn parse_incorrect_binop() {
         let tokens = scan("3 +");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert_eq!(
             parser.has_errors(),
@@ -122,7 +122,7 @@ mod tests {
     fn parse_with_group() {
         let tokens = scan("(3 + 2) * 10;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         match &node.node {
@@ -138,7 +138,7 @@ mod tests {
     fn parse_simple_unary() {
         let tokens = scan("-42;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         match &node.node {
@@ -154,7 +154,7 @@ mod tests {
     fn parse_multi_unary() {
         let tokens = scan("--42;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         match &node.node {
@@ -170,7 +170,7 @@ mod tests {
     fn parse_grouped_unary() {
         let tokens = scan("-(42 + 10);");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         match &node.node {
@@ -194,7 +194,7 @@ mod tests {
     fn parse_assignment_to_expression() {
         let tokens = scan("myVar = -(42 + 10);");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::Assignment(_)));
@@ -204,7 +204,7 @@ mod tests {
     fn parse_logical_expression() {
         let tokens = scan("true or false and 42;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -214,7 +214,7 @@ mod tests {
     fn parse_equality_expression() {
         let tokens = scan("32 == 27;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -224,7 +224,7 @@ mod tests {
     fn parse_equality_expression_2() {
         let tokens = scan("32 != 27;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -234,7 +234,7 @@ mod tests {
     fn parse_comparison_expression() {
         let tokens = scan("32 >= 27 and 10 < 11 or 9 <= 6 and 8 > 2;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::BinOp(_)));
@@ -244,7 +244,7 @@ mod tests {
     fn parse_property_access() {
         let tokens = scan("object.property;");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::PropertyAccess(_)));
@@ -254,7 +254,7 @@ mod tests {
     fn parse_call_expression() {
         let tokens = scan("myFunc();");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::Call(_)));
@@ -264,7 +264,7 @@ mod tests {
     fn parse_call_expression_multiple_args() {
         let tokens = scan("myFunc(42, hello + 3);");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::Call(_)));
@@ -274,7 +274,7 @@ mod tests {
     fn parse_call_prop_access() {
         let tokens = scan("obj.methodOne(42).methodTwo(hello, goodbye)();");
         let mut parser = Parser::new(tokens);
-        let node = parser.parse_expression();
+        let node = parser.parse_expression(true);
 
         assert!(!parser.has_errors());
         // assert!(matches!(node.node, NodeType::Call(_)));

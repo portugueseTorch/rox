@@ -130,13 +130,14 @@ impl<'a> Expr<'a> {
                     indent,
                     call.calee.node.to_yaml(next_level + 1)
                 );
-                s += &format!("\n{}Args:", indent);
-                for arg in call.args.iter() {
-                    s += &format!(
-                        "\n  {}- {}\n",
-                        indent,
-                        arg.node.to_yaml(next_level).trim_end()
-                    );
+                if (call.args.is_empty()) {
+                    s += &format!("\n{}Args: []", indent);
+                } else {
+                    s += &format!("\n{}Args: [", indent);
+                    for arg in call.args.iter() {
+                        s += &format!("\n{}", arg.node.to_yaml(next_level + 1).trim_end());
+                    }
+                    s += &format!("\n{}]", indent);
                 }
                 s.trim_end().to_string()
             }

@@ -39,23 +39,19 @@ impl<'a> Stmt<'a> {
                 );
                 s += &format!("\n{}If:", indent);
                 for stmt in data.if_body.iter() {
-                    s += &format!("\n{}{}\n", indent, stmt.to_yaml(next_level).trim_end());
+                    s += &format!("\n{}\n", stmt.to_yaml(next_level).trim_end());
                 }
                 if !data.else_body.is_empty() {
                     s += &format!("\n{}Else:", indent);
                     for stmt in data.else_body.iter() {
-                        s += &format!("\n{}{}\n", indent, stmt.to_yaml(next_level).trim_end());
+                        s += &format!("\n{}\n", stmt.to_yaml(next_level).trim_end());
                     }
                 }
                 s.trim_end().to_string()
             }
 
             Stmt::Expression(expr) => {
-                format!(
-                    "{}Expr:\n{}",
-                    spaces,
-                    expr.node.to_yaml(next_level + 1).trim_end()
-                )
+                format!("{}", expr.node.to_yaml(next_level).trim_end())
             }
         }
     }
@@ -103,7 +99,7 @@ mod tests {
             "if (42 + 4 > 10) {
                 42;
             } else {
-                self.wrong();
+                self.wrong(false, hello);
             }",
         );
         let mut parser = Parser::new(tokens);

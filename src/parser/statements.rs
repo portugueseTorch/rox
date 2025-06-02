@@ -242,8 +242,7 @@ impl<'a> Stmt<'a> {
                 if class.methods.is_empty() {
                     s += &format!("\n{}Methods: []", indent);
                 } else {
-                    s += &format!("\n{}Params: [ ", indent);
-                    s += &format!("\n{}Body: [", indent);
+                    s += &format!("\n{}Methods: [", indent);
                     for method in class.methods.iter() {
                         s += &format!(
                             "\n{},\n",
@@ -424,10 +423,22 @@ mod tests {
         let tokens = scan("fun myFunc(a, b) { var myVar = a; return a + 42;}");
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
-        statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);
         assert!(matches!(statements.get(0).unwrap(), Stmt::FuncDecl(_)));
+    }
+
+    #[test]
+    fn parse_class_decl() {
+        let tokens =
+            scan("class Nice {fun methodOne() {} fun methodTwo(name, age) { return name + age; }}");
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+        statements.iter().for_each(|f| println!("{}", f));
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::ClassDecl(_)));
     }
 }

@@ -7,7 +7,8 @@ use super::{
     ast::{Expr, ExprNode},
     expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
     statements::{
-        ForStmt, FuncDeclStatement, IfStmt, ReturnStmt, Stmt, VarDeclStatement, WhileStmt,
+        ClassDeclStatement, ForStmt, FuncDeclStatement, IfStmt, ReturnStmt, Stmt, VarDeclStatement,
+        WhileStmt,
     },
 };
 
@@ -71,8 +72,53 @@ impl<'a> Parser<'a> {
             TokenType::Var => self.parse_var_decl(),
             TokenType::Return => self.parse_return(),
             TokenType::Fun => self.parse_func_decl(),
+            TokenType::Class => self.parse_class_decl(),
             _ => Stmt::Expression(self.parse_expression(expect_semicolon)),
         }
+    }
+
+    fn parse_class_decl(&mut self) -> Stmt<'a> {
+        self.next();
+
+        // --- parse class name
+        let name = self.next().clone();
+        if !matches!(name.token_type, TokenType::Identifier) {
+            self.handle_error(
+                name.clone(),
+                format!(
+                    "unexpected token: expected 'IDENT' but got '{}'",
+                    name.token_type
+                ),
+            );
+
+            return Stmt::Error;
+        }
+
+        self.expect(TokenType::LeftBrace);
+
+        // --- parse methods
+        let mut methods = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+            let stmt = self.parse_statement(true);
+            match stmt {
+                Stmt::FuncDecl(decl) => methods.push(decl),
+                _ => {
+                    self.handle_error(
+                        name.clone(),
+                        format!(
+                            "unexpected token: expected 'IDENT' but got '{}'",
+                            name.token_type
+                        ),
+                    );
+
+                    return Stmt::Error;
+                }
+            };
+        }
+
+        self.expect(TokenType::RightBrace);
+
+        Stmt::ClassDecl(ClassDeclStatement { name, methods })
     }
 
     fn parse_func_decl(&mut self) -> Stmt<'a> {

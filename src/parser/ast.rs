@@ -130,7 +130,7 @@ impl<'a> Expr<'a> {
                     indent,
                     call.calee.node.to_yaml(next_level + 1)
                 );
-                if (call.args.is_empty()) {
+                if call.args.is_empty() {
                     s += &format!("\n{}Args: []", indent);
                 } else {
                     s += &format!("\n{}Args: [", indent);

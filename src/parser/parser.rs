@@ -6,7 +6,9 @@ use crate::{
 use super::{
     ast::{Expr, ExprNode},
     expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
-    statements::{ForStmt, IfStmt, ReturnStmt, Stmt, VarDeclStatement, WhileStmt},
+    statements::{
+        ForStmt, FuncDeclStatement, IfStmt, ReturnStmt, Stmt, VarDeclStatement, WhileStmt,
+    },
 };
 
 macro_rules! parsing_error {
@@ -68,8 +70,69 @@ impl<'a> Parser<'a> {
             TokenType::For => self.parse_for(),
             TokenType::Var => self.parse_var_decl(),
             TokenType::Return => self.parse_return(),
+            TokenType::Fun => self.parse_func_decl(),
             _ => Stmt::Expression(self.parse_expression(expect_semicolon)),
         }
+    }
+
+    fn parse_func_decl(&mut self) -> Stmt<'a> {
+        self.next();
+
+        // --- parse function name
+        let name = self.next().clone();
+        if !matches!(name.token_type, TokenType::Identifier) {
+            self.handle_error(
+                name.clone(),
+                format!(
+                    "unexpected token: expected 'IDENT' but got '{}'",
+                    name.token_type
+                ),
+            );
+
+            return Stmt::Error;
+        }
+
+        self.expect(TokenType::LeftParen);
+
+        // --- parse parameters, if any
+        let mut params = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightParen) {
+            let param = self.parse_expr(0);
+
+            // --- params should all be vars
+            if !matches!(param.node, Expr::Var(_)) {
+                self.handle_error(
+                    name.clone(),
+                    format!(
+                        "unexpected token: expected 'IDENT' but got '{}'",
+                        name.token_type
+                    ),
+                );
+
+                return Stmt::Error;
+            }
+
+            params.push(param.token.clone());
+            self.matches(TokenType::Comma);
+        }
+
+        self.expect(TokenType::RightParen);
+        self.expect(TokenType::LeftBrace);
+
+        // --- parse body
+        let mut body = vec![];
+        while !self.is_at_end() && !matches!(self.peek().token_type, TokenType::RightBrace) {
+            let stmt = self.parse_statement(true);
+            body.push(stmt);
+        }
+
+        self.expect(TokenType::RightBrace);
+
+        Stmt::FuncDecl(FuncDeclStatement {
+            name,
+            parameters: params,
+            body,
+        })
     }
 
     fn parse_return(&mut self) -> Stmt<'a> {

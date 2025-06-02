@@ -35,6 +35,12 @@ pub struct ReturnStmt<'a> {
     pub value: Option<ExprNode<'a>>,
 }
 
+pub struct FuncDeclStatement<'a> {
+    pub name: Token<'a>,
+    pub parameters: Vec<Token<'a>>,
+    pub body: Vec<Stmt<'a>>,
+}
+
 pub enum Stmt<'a> {
     /// Single expression
     Expression(ExprNode<'a>),
@@ -62,7 +68,10 @@ pub enum Stmt<'a> {
     ///   - optional initializer
     VarDecl(VarDeclStatement<'a>),
 
+    /// Return statement, containing optional return expression
     Return(ReturnStmt<'a>),
+
+    FuncDecl(FuncDeclStatement<'a>),
 
     Error,
 }
@@ -175,6 +184,33 @@ impl<'a> Stmt<'a> {
                             .node
                             .to_yaml(next_level))
                 );
+                s.trim_end().to_string()
+            }
+
+            Stmt::FuncDecl(func) => {
+                let mut s = format!("{}Func:\n", spaces);
+                s += &format!("{}Name: {}", indent, func.name.lexeme.unwrap());
+                if func.parameters.is_empty() {
+                    s += &format!("\n{}Params: []", indent);
+                } else {
+                    s += &format!("\n{}Params: [ ", indent);
+                    for (idx, param) in func.parameters.iter().enumerate() {
+                        s += &format!("{}", param.lexeme.unwrap());
+                        if idx + 1 < func.parameters.len() {
+                            s += &format!(", ");
+                        }
+                    }
+                    s += &format!(" ]");
+                }
+                if func.body.is_empty() {
+                    s += &format!("\n{}Body: []", indent);
+                } else {
+                    s += &format!("\n{}Body: [", indent);
+                    for stmt in func.body.iter() {
+                        s += &format!("\n{},\n", stmt.to_yaml(next_level + 1).trim_end());
+                    }
+                    s += &format!("{}]", indent);
+                }
                 s.trim_end().to_string()
             }
 
@@ -319,14 +355,36 @@ mod tests {
     }
 
     #[test]
-    fn parse_empty_return() {
+    fn parse_return() {
         let tokens = scan("return 42 + 1337;");
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::Return(_)));
+    }
+
+    #[test]
+    fn parse_empty_function_decl() {
+        let tokens = scan("fun myFunc() {}");
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::FuncDecl(_)));
+    }
+
+    #[test]
+    fn parse_function_decl() {
+        let tokens = scan("fun myFunc(a, b) { var myVar = a; return a + 42;}");
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
         statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);
-        assert!(matches!(statements.get(0).unwrap(), Stmt::Return(_)));
+        assert!(matches!(statements.get(0).unwrap(), Stmt::FuncDecl(_)));
     }
 }

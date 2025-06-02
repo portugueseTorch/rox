@@ -2,33 +2,39 @@ use crate::scanner::token::{Token, TokenType};
 
 use super::ast::{Expr, ExprNode};
 
+#[derive(Clone)]
 pub struct BinaryExpr<'a> {
     pub op: TokenType,
     pub left: Box<ExprNode<'a>>,
     pub right: Box<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct UnaryExpr<'a> {
     pub op: TokenType,
     pub operand: Box<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct AssignmentExpr<'a> {
     pub name: Token<'a>,
     pub expr: Box<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct CallExpr<'a> {
     pub calee: Box<ExprNode<'a>>,
     pub args: Vec<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct PropertyAccessExpr<'a> {
     pub object: Box<ExprNode<'a>>,
     pub property: Token<'a>,
 }
 
 // --- may be subject to constant folding
+#[derive(Clone)]
 pub enum Value<'a> {
     StringLiteral(&'a str),
     Number(i32),

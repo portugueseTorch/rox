@@ -4,6 +4,7 @@ use crate::scanner::token::Token;
 
 use super::ast::ExprNode;
 
+#[derive(Clone)]
 pub struct IfStmt<'a> {
     pub condition: ExprNode<'a>,
     pub if_body: Vec<Stmt<'a>>,
@@ -11,11 +12,13 @@ pub struct IfStmt<'a> {
     pub else_body: Vec<Stmt<'a>>,
 }
 
+#[derive(Clone)]
 pub struct WhileStmt<'a> {
     pub condition: ExprNode<'a>,
     pub body: Vec<Stmt<'a>>,
 }
 
+#[derive(Clone)]
 pub struct ForStmt<'a> {
     /// optional initializer for the loop
     pub initializer: Option<Box<Stmt<'a>>>,
@@ -26,21 +29,31 @@ pub struct ForStmt<'a> {
     pub body: Vec<Stmt<'a>>,
 }
 
+#[derive(Clone)]
 pub struct VarDeclStatement<'a> {
     pub var_name: Token<'a>,
     pub initializer: Option<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct ReturnStmt<'a> {
     pub value: Option<ExprNode<'a>>,
 }
 
+#[derive(Clone)]
 pub struct FuncDeclStatement<'a> {
     pub name: Token<'a>,
     pub parameters: Vec<Token<'a>>,
     pub body: Vec<Stmt<'a>>,
 }
 
+#[derive(Clone)]
+pub struct ClassDeclStatement<'a> {
+    pub name: Token<'a>,
+    pub methods: Vec<FuncDeclStatement<'a>>,
+}
+
+#[derive(Clone)]
 pub enum Stmt<'a> {
     /// Single expression
     Expression(ExprNode<'a>),
@@ -71,7 +84,16 @@ pub enum Stmt<'a> {
     /// Return statement, containing optional return expression
     Return(ReturnStmt<'a>),
 
+    /// Function declaration containing:
+    ///   - function name as token
+    ///   - paramters as token list
+    ///   - functio body as statement list
     FuncDecl(FuncDeclStatement<'a>),
+
+    /// Class declarations containing:
+    ///   - name as token
+    ///   - methods as list of FuncDeclStatements
+    ClassDecl(ClassDeclStatement<'a>),
 
     Error,
 }
@@ -208,6 +230,27 @@ impl<'a> Stmt<'a> {
                     s += &format!("\n{}Body: [", indent);
                     for stmt in func.body.iter() {
                         s += &format!("\n{},\n", stmt.to_yaml(next_level + 1).trim_end());
+                    }
+                    s += &format!("{}]", indent);
+                }
+                s.trim_end().to_string()
+            }
+
+            Stmt::ClassDecl(class) => {
+                let mut s = format!("{}Class:\n", spaces);
+                s += &format!("{}Name: {}", indent, class.name.lexeme.unwrap());
+                if class.methods.is_empty() {
+                    s += &format!("\n{}Methods: []", indent);
+                } else {
+                    s += &format!("\n{}Params: [ ", indent);
+                    s += &format!("\n{}Body: [", indent);
+                    for method in class.methods.iter() {
+                        s += &format!(
+                            "\n{},\n",
+                            Stmt::FuncDecl(method.clone())
+                                .to_yaml(next_level + 1)
+                                .trim_end()
+                        );
                     }
                     s += &format!("{}]", indent);
                 }

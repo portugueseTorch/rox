@@ -6,6 +6,7 @@ use super::expressions::{
     AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value,
 };
 
+#[derive(Clone)]
 pub struct ExprNode<'a> {
     pub token: Token<'a>,
     pub node: Expr<'a>,
@@ -27,6 +28,7 @@ impl<'a> Display for ExprNode<'a> {
     }
 }
 
+#[derive(Clone)]
 pub enum Expr<'a> {
     // --- expressions
     /// Literals, containing

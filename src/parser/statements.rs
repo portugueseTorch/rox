@@ -31,6 +31,10 @@ pub struct VarDeclStatement<'a> {
     pub initializer: Option<ExprNode<'a>>,
 }
 
+pub struct ReturnStmt<'a> {
+    pub value: Option<ExprNode<'a>>,
+}
+
 pub enum Stmt<'a> {
     /// Single expression
     Expression(ExprNode<'a>),
@@ -57,6 +61,8 @@ pub enum Stmt<'a> {
     ///   - var name as an expression node
     ///   - optional initializer
     VarDecl(VarDeclStatement<'a>),
+
+    Return(ReturnStmt<'a>),
 
     Error,
 }
@@ -155,6 +161,19 @@ impl<'a> Stmt<'a> {
                         .map_or(format!("{}  None", indent), |node| node
                             .node
                             .to_yaml(next_level + 1))
+                );
+                s.trim_end().to_string()
+            }
+
+            Stmt::Return(ret) => {
+                let mut s = format!("{}Return:\n", spaces);
+                s += &format!(
+                    "{}",
+                    ret.value
+                        .as_ref()
+                        .map_or(format!("{}  None", indent), |node| node
+                            .node
+                            .to_yaml(next_level))
                 );
                 s.trim_end().to_string()
             }
@@ -293,10 +312,21 @@ mod tests {
         );
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
-        statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);
         assert!(matches!(statements.get(0).unwrap(), Stmt::VarDecl(_)));
+    }
+
+    #[test]
+    fn parse_empty_return() {
+        let tokens = scan("return 42 + 1337;");
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
+        statements.iter().for_each(|f| println!("{}", f));
+
+        assert!(!parser.has_errors());
+        assert!(statements.len() == 1);
+        assert!(matches!(statements.get(0).unwrap(), Stmt::Return(_)));
     }
 }

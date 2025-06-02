@@ -6,7 +6,7 @@ use crate::{
 use super::{
     ast::{Expr, ExprNode},
     expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
-    statements::{ForStmt, IfStmt, Stmt, VarDeclStatement, WhileStmt},
+    statements::{ForStmt, IfStmt, ReturnStmt, Stmt, VarDeclStatement, WhileStmt},
 };
 
 macro_rules! parsing_error {
@@ -67,8 +67,21 @@ impl<'a> Parser<'a> {
             TokenType::While => self.parse_while(),
             TokenType::For => self.parse_for(),
             TokenType::Var => self.parse_var_decl(),
+            TokenType::Return => self.parse_return(),
             _ => Stmt::Expression(self.parse_expression(expect_semicolon)),
         }
+    }
+
+    fn parse_return(&mut self) -> Stmt<'a> {
+        self.next();
+        let mut value = None;
+
+        // --- parse return expression, if any
+        if !self.matches(TokenType::Semicolon) {
+            value = Some(self.parse_expression(true));
+        }
+
+        Stmt::Return(ReturnStmt { value })
     }
 
     fn parse_var_decl(&mut self) -> Stmt<'a> {

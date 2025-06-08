@@ -1,4 +1,4 @@
-mod ast;
-mod expressions;
+pub mod ast;
+pub mod expressions;
 pub mod parser;
-mod statements;
+pub mod statements;

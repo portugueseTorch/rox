@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::scanner::token::Token;
 
-use super::ast::ExprNode;
+use super::ast::{AstNode, ExprNode};
 
 #[derive(Clone)]
 pub struct IfStmt<'a> {
@@ -96,6 +96,68 @@ pub enum Stmt<'a> {
     ClassDecl(ClassDeclStatement<'a>),
 
     Error,
+}
+
+impl<'a> AstNode for Stmt<'a> {
+    fn count_nodes(&self) -> usize {
+        match self {
+            Stmt::Error => 1,
+            Stmt::Expression(expr) => expr.node.count_nodes(),
+            Stmt::FuncDecl(func) => func.body.iter().map(|m| m.count_nodes()).sum(),
+            Stmt::ClassDecl(class) => class
+                .methods
+                .iter()
+                .map(|m| m.body.iter().map(|m| m.count_nodes()).sum::<usize>())
+                .sum(),
+            Stmt::VarDecl(var) => match &var.initializer {
+                Some(i) => i.node.count_nodes(),
+                None => 0,
+            },
+            Stmt::Return(ret) => match &ret.value {
+                Some(r) => r.node.count_nodes(),
+                None => 0,
+            },
+            Stmt::While(wh) => {
+                let condition = wh.condition.node.count_nodes();
+                let body = wh.body.iter().map(|m| m.count_nodes()).sum::<usize>();
+                condition + body
+            }
+            Stmt::For(payload) => {
+                let initializer = match &payload.initializer {
+                    Some(init) => init.count_nodes(),
+                    None => 0,
+                };
+
+                let condition = match &payload.condition {
+                    Some(cond) => cond.node.count_nodes(),
+                    None => 0,
+                };
+
+                let increment = match &payload.increment {
+                    Some(inc) => inc.node.count_nodes(),
+                    None => 0,
+                };
+
+                let body = payload.body.iter().map(|m| m.count_nodes()).sum::<usize>();
+
+                initializer + condition + increment + body
+            }
+            Stmt::If(payload) => {
+                let condition = payload.condition.node.count_nodes();
+                let if_body = payload
+                    .if_body
+                    .iter()
+                    .map(|m| m.count_nodes())
+                    .sum::<usize>();
+                let else_body = payload
+                    .else_body
+                    .iter()
+                    .map(|m| m.count_nodes())
+                    .sum::<usize>();
+                condition + if_body + else_body
+            }
+        }
+    }
 }
 
 impl<'a> Stmt<'a> {

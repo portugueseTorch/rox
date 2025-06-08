@@ -258,9 +258,10 @@ mod tests {
 
     #[test]
     fn parse_call_expression() {
-        let tokens = scan("myFunc();");
+        let tokens = scan("obj.myFunc(42, hello);");
         let mut parser = Parser::new(tokens);
         let node = parser.parse_expression(true);
+        node.log();
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::Call(_)));

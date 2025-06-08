@@ -1,10 +1,16 @@
 use std::fmt::Display;
 
+use itertools::Itertools;
+
 use crate::scanner::token::{Token, TokenType};
 
 use super::expressions::{
     AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value,
 };
+
+pub trait AstNode {
+    fn count_nodes(&self) -> usize;
+}
 
 #[derive(Clone)]
 pub struct ExprNode<'a> {
@@ -104,6 +110,34 @@ pub enum Expr<'a> {
 
     /// Represents an error
     Error,
+}
+
+impl<'a> AstNode for Expr<'a> {
+    fn count_nodes(&self) -> usize {
+        let nodes_in_subtrees = match self {
+            Expr::Error | Expr::Var(_) | Expr::Constant(_) => 0,
+            Expr::Assignment(assignment) => assignment.expr.node.count_nodes(),
+            Expr::Unary(unary) => unary.operand.node.count_nodes(),
+            Expr::Grouping(group) => group.node.count_nodes(),
+            Expr::PropertyAccess(prop) => prop.object.node.count_nodes(),
+            Expr::BinOp(binop) => {
+                let left = binop.left.node.count_nodes();
+                let right = binop.right.node.count_nodes();
+                left + right
+            }
+            Expr::Call(call) => {
+                let calee_nodes = call.calee.node.count_nodes();
+                let arg_nodes = call
+                    .args
+                    .iter()
+                    .map(|m| m.node.count_nodes())
+                    .sum::<usize>();
+                calee_nodes + arg_nodes
+            }
+        };
+
+        nodes_in_subtrees + 1
+    }
 }
 
 impl<'a> Expr<'a> {

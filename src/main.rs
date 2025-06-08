@@ -1,8 +1,4 @@
-use std::{
-    env,
-    fs::read_to_string,
-    io::{self, Write},
-};
+use std::{env, fs::read_to_string, io::Write};
 
 use parser::parser::Parser;
 use scanner::scanner::Scanner;
@@ -11,6 +7,7 @@ mod bitwise;
 mod chunks;
 mod compiler;
 mod errors;
+mod optimizer;
 mod parser;
 mod scanner;
 mod vm;

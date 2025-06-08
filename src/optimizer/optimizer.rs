@@ -6,6 +6,11 @@ impl Optimizer {
     pub fn optimize(ast: Vec<Stmt>) -> Vec<Stmt> {
         let initial_node_count = Optimizer::count_nodes(&ast);
         println!("Optimization started at {} nodes", initial_node_count);
+
+        // let optimized_stmts = vec![];
+        // for stmt in ast {
+        //     optimized_stmts.push(stmt.optimize());
+        // }
         unimplemented!();
     }
 
@@ -34,7 +39,7 @@ mod tests {
     #[test]
     fn count_nodes_1() {
         let ast = scan_and_parse("2 + 3");
-        let node_count = Optimizer::count_nodes(ast);
+        let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 3);
     }
@@ -42,7 +47,7 @@ mod tests {
     #[test]
     fn count_nodes_2() {
         let ast = scan_and_parse("2 + 3 * 42");
-        let node_count = Optimizer::count_nodes(ast);
+        let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 5);
     }
@@ -54,7 +59,7 @@ mod tests {
                 42;
             }",
         );
-        let node_count = Optimizer::count_nodes(ast);
+        let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 2);
     }
@@ -62,7 +67,7 @@ mod tests {
     #[test]
     fn count_nodes_4() {
         let ast = scan_and_parse("fun myFunc(a, b) { var myVar = a; return a + 42;}");
-        let node_count = Optimizer::count_nodes(ast);
+        let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 4);
     }
@@ -76,7 +81,7 @@ mod tests {
             }
             ",
         );
-        let node_count = Optimizer::count_nodes(ast);
+        let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 11);
     }

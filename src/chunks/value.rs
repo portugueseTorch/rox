@@ -1,6 +1,9 @@
 use core::fmt;
 
+use anyhow::bail;
 use ordered_float::OrderedFloat;
+
+use crate::scanner::token::TokenType;
 
 macro_rules! op_error {
     ($lhs:expr, $rhs:expr) => {
@@ -12,7 +15,7 @@ macro_rules! op_error {
     };
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Value {
     Number(OrderedFloat<f64>),
     Literal(&'static str),

@@ -351,7 +351,9 @@ impl<'a> Parser<'a> {
     fn parse_expr(&mut self, bp: usize) -> ExprNode<'a> {
         let tok = self.next().clone();
         let lhs = match tok.token_type {
-            TokenType::StringLiteral => Expr::Constant(Value::StringLiteral(tok.lexeme.unwrap())),
+            TokenType::StringLiteral => {
+                Expr::Constant(Value::StringLiteral(tok.lexeme.unwrap().to_string()))
+            }
             TokenType::Identifier => Expr::Var(tok.lexeme.unwrap()),
             TokenType::Minus | TokenType::Plus | TokenType::Bang => {
                 let (_, rbp) = prefix_binding_power(tok.token_type);

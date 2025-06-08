@@ -28,6 +28,30 @@ impl<'a> ExprNode<'a> {
     }
 }
 
+impl<'a> AstNode for ExprNode<'a> {
+    fn count_nodes(&self) -> usize {
+        let nodes_in_subtrees = match &self.node {
+            Expr::Error | Expr::Var(_) | Expr::Constant(_) => 0,
+            Expr::Assignment(assignment) => assignment.expr.count_nodes(),
+            Expr::Unary(unary) => unary.operand.count_nodes(),
+            Expr::Grouping(group) => group.count_nodes(),
+            Expr::PropertyAccess(prop) => prop.object.count_nodes(),
+            Expr::BinOp(binop) => {
+                let left = binop.left.count_nodes();
+                let right = binop.right.count_nodes();
+                left + right
+            }
+            Expr::Call(call) => {
+                let calee_nodes = call.calee.count_nodes();
+                let arg_nodes = call.args.iter().map(|m| m.count_nodes()).sum::<usize>();
+                calee_nodes + arg_nodes
+            }
+        };
+
+        nodes_in_subtrees + 1
+    }
+}
+
 impl<'a> Display for ExprNode<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.node)
@@ -48,7 +72,7 @@ pub enum Expr<'a> {
     ///   true
     ///   nil
     ///   ```
-    Constant(Value<'a>),
+    Constant(Value),
 
     /// Variable identifier, containing the name of the identifier as a slice into the source code
     /// ```
@@ -112,35 +136,16 @@ pub enum Expr<'a> {
     Error,
 }
 
-impl<'a> AstNode for Expr<'a> {
-    fn count_nodes(&self) -> usize {
-        let nodes_in_subtrees = match self {
-            Expr::Error | Expr::Var(_) | Expr::Constant(_) => 0,
-            Expr::Assignment(assignment) => assignment.expr.node.count_nodes(),
-            Expr::Unary(unary) => unary.operand.node.count_nodes(),
-            Expr::Grouping(group) => group.node.count_nodes(),
-            Expr::PropertyAccess(prop) => prop.object.node.count_nodes(),
-            Expr::BinOp(binop) => {
-                let left = binop.left.node.count_nodes();
-                let right = binop.right.node.count_nodes();
-                left + right
-            }
-            Expr::Call(call) => {
-                let calee_nodes = call.calee.node.count_nodes();
-                let arg_nodes = call
-                    .args
-                    .iter()
-                    .map(|m| m.node.count_nodes())
-                    .sum::<usize>();
-                calee_nodes + arg_nodes
-            }
-        };
-
-        nodes_in_subtrees + 1
-    }
-}
-
 impl<'a> Expr<'a> {
+    fn fold_constants(c1: Value, c2: Value, op: TokenType) -> Expr<'a> {
+        let computed_value = Value::compute(c1, c2, op);
+
+        match computed_value {
+            Ok(v) => Expr::Constant(v),
+            Err(_) => Expr::Error,
+        }
+    }
+
     pub fn is_error(&self) -> bool {
         if matches!(self, Expr::Error) {
             return true;

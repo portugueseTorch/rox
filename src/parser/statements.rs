@@ -102,7 +102,7 @@ impl<'a> AstNode for Stmt<'a> {
     fn count_nodes(&self) -> usize {
         match self {
             Stmt::Error => 1,
-            Stmt::Expression(expr) => expr.node.count_nodes(),
+            Stmt::Expression(expr) => expr.count_nodes(),
             Stmt::FuncDecl(func) => func.body.iter().map(|m| m.count_nodes()).sum(),
             Stmt::ClassDecl(class) => class
                 .methods
@@ -110,15 +110,15 @@ impl<'a> AstNode for Stmt<'a> {
                 .map(|m| m.body.iter().map(|m| m.count_nodes()).sum::<usize>())
                 .sum(),
             Stmt::VarDecl(var) => match &var.initializer {
-                Some(i) => i.node.count_nodes(),
+                Some(i) => i.count_nodes(),
                 None => 0,
             },
             Stmt::Return(ret) => match &ret.value {
-                Some(r) => r.node.count_nodes(),
+                Some(r) => r.count_nodes(),
                 None => 0,
             },
             Stmt::While(wh) => {
-                let condition = wh.condition.node.count_nodes();
+                let condition = wh.condition.count_nodes();
                 let body = wh.body.iter().map(|m| m.count_nodes()).sum::<usize>();
                 condition + body
             }
@@ -129,12 +129,12 @@ impl<'a> AstNode for Stmt<'a> {
                 };
 
                 let condition = match &payload.condition {
-                    Some(cond) => cond.node.count_nodes(),
+                    Some(cond) => cond.count_nodes(),
                     None => 0,
                 };
 
                 let increment = match &payload.increment {
-                    Some(inc) => inc.node.count_nodes(),
+                    Some(inc) => inc.count_nodes(),
                     None => 0,
                 };
 
@@ -143,7 +143,7 @@ impl<'a> AstNode for Stmt<'a> {
                 initializer + condition + increment + body
             }
             Stmt::If(payload) => {
-                let condition = payload.condition.node.count_nodes();
+                let condition = payload.condition.count_nodes();
                 let if_body = payload
                     .if_body
                     .iter()

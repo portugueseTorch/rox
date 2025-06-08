@@ -1,3 +1,5 @@
+use anyhow::bail;
+
 use crate::scanner::token::{Token, TokenType};
 
 use super::ast::{Expr, ExprNode};
@@ -35,11 +37,52 @@ pub struct PropertyAccessExpr<'a> {
 
 // --- may be subject to constant folding
 #[derive(Clone)]
-pub enum Value<'a> {
-    StringLiteral(&'a str),
+pub enum Value {
+    StringLiteral(String),
     Number(i32),
     Bool(bool),
     Nil,
+}
+
+impl Value {
+    pub fn compute(lhs: Value, rhs: Value, op: TokenType) -> anyhow::Result<Value> {
+        match op {
+            TokenType::Plus => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Number(l + r)),
+                (Value::StringLiteral(l), Value::StringLiteral(r)) => {
+                    Ok(Value::StringLiteral(format!("{}{}", l, r)))
+                }
+                _ => bail!("invalid op for numbers"),
+            },
+            TokenType::Minus => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Number(l - r)),
+                _ => bail!("invalid op for numbers"),
+            },
+            TokenType::Star => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Number(l * r)),
+                _ => bail!("invalid op for numbers"),
+            },
+            TokenType::Slash => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Number(l / r)),
+                _ => bail!("invalid op for numbers"),
+            },
+            TokenType::EqualEqual => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Bool(l == r)),
+                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l == r)),
+                (Value::StringLiteral(l), Value::StringLiteral(r)) => Ok(Value::Bool(l == r)),
+                _ => bail!("invalid op for numbers"),
+            },
+            TokenType::GreaterEqual => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Bool(l >= r)),
+                _ => bail!("invalid op"),
+            },
+            TokenType::LessEqual => match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Bool(l <= r)),
+                _ => bail!("invalid op"),
+            },
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -116,8 +116,9 @@ mod tests {
 
     #[test]
     fn optimize_3() {
-        let ast =
-            scan_and_parse("obj.myFunc(2 * 5, 42 + 3 * 6, test.method(10 + 3 * 10 + 20 / 2));");
+        let ast = scan_and_parse(
+            "obj.myFunc(2 * 5, 42 + 3 * 6, test.hello.method((10 + 3) * 10 + 20 / 2));",
+        );
         ast.iter().for_each(|stmt| println!("Before: {}", stmt));
         let optimized = Optimizer::optimize(ast);
         optimized

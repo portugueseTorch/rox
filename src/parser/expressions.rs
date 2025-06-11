@@ -53,29 +53,29 @@ pub enum Expr<'a> {
     ///   - booleans
     ///   - nil
     ///   ```
-    ///   "Hello, World!"
-    ///   1337
-    ///   true
-    ///   nil
+    /// //   "Hello, World!"
+    /// //  1337
+    /// //  true
+    /// //  nil
     ///   ```
     Constant(Value),
 
     /// Variable identifier, containing the name of the identifier as a slice into the source code
     /// ```
-    /// myVar
+    /// // myVar
     /// ```
     Var(&'a str),
 
     /// Binary operations
     /// ```
-    /// a + b * 42
+    /// // a + b * 42
     /// // --- Resulting tree:
     ///
-    ///           +
-    ///          / \
-    ///         a   *
-    ///            / \
-    ///           b  42
+    /// //        +
+    /// //       / \
+    /// //      a   *
+    /// //         / \
+    /// //        b  42
     /// ```
     BinOp(BinaryExpr<'a>),
 
@@ -83,8 +83,8 @@ pub enum Expr<'a> {
     ///   - first element of the typle holds the token for the unary operator
     ///   - second element of the tuple is the operand
     ///  ```
-    ///  -1337
-    ///  !boolean
+    ///  // -1337
+    ///  // !boolean
     ///  ```
     Unary(UnaryExpr<'a>),
 
@@ -92,13 +92,13 @@ pub enum Expr<'a> {
     ///   - first element of the tuple holds the token for the name of the variable
     ///   - second element of the tuple holds the node to be assigned
     /// ```
-    /// var myVar = a + b * 42;
+    /// // var myVar = a + b * 42;
     /// ```
     Assignment(AssignmentExpr<'a>),
 
     /// Grouping around an expression
     /// ```
-    /// (a + b)
+    /// // (a + b)
     /// ```
     Grouping(Box<ExprNode<'a>>),
 
@@ -106,7 +106,7 @@ pub enum Expr<'a> {
     ///   - first element of the tuple holds the node for the calle
     ///   - second element of the tuple holds a vector of args
     /// ```
-    /// method(42)
+    /// // method(42)
     /// ```
     Call(CallExpr<'a>),
 
@@ -114,7 +114,7 @@ pub enum Expr<'a> {
     ///   - first element of the tuple holds the node for the calle
     ///   - second element of the tuple holds a vector of args
     /// ```
-    /// obj.property
+    /// // obj.property
     /// ```
     PropertyAccess(PropertyAccessExpr<'a>),
 

@@ -632,7 +632,7 @@ impl<'a> Parser<'a> {
 
     /// Returns the token at an offset of `step` from the token being parsed.
     /// ```
-    /// look_ahead(0).unwrap() == peek()
+    /// // look_ahead(0).unwrap() == peek()
     /// ```
     fn _look_ahead(&self, step: usize) -> Option<&Token<'a>> {
         self.tokens.get(self.cur + step)

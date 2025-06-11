@@ -103,7 +103,14 @@ impl<'a> AstNode for ExprNode<'a> {
                     property: prop.property.clone(),
                 })
             }
-            Expr::Grouping(group) => Expr::Grouping(Box::new(group.optimize())),
+            Expr::Grouping(group) => {
+                let optimized = group.optimize();
+
+                match optimized.node {
+                    Expr::Constant(val) => Expr::Constant(val),
+                    _ => Expr::Grouping(Box::new(optimized)),
+                }
+            }
             Expr::Error | Expr::Var(_) | Expr::Constant(_) => self.node.clone(),
         };
 

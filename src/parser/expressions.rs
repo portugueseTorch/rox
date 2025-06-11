@@ -488,9 +488,10 @@ mod tests {
 
     #[test]
     fn parse_property_access() {
-        let tokens = scan("object.property;");
+        let tokens = scan("user.data.email;");
         let mut parser = Parser::new(tokens);
         let node = parser.parse_expression(true);
+        node.log();
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::PropertyAccess(_)));
@@ -501,7 +502,6 @@ mod tests {
         let tokens = scan("obj.myFunc(42, hello);");
         let mut parser = Parser::new(tokens);
         let node = parser.parse_expression(true);
-        node.log();
 
         assert!(!parser.has_errors());
         assert!(matches!(node.node, Expr::Call(_)));
@@ -522,6 +522,7 @@ mod tests {
         let tokens = scan("obj.methodOne(42).methodTwo(hello, goodbye)();");
         let mut parser = Parser::new(tokens);
         let node = parser.parse_expression(true);
+        node.log();
 
         assert!(!parser.has_errors());
         // assert!(matches!(node.node, NodeType::Call(_)));

@@ -73,7 +73,12 @@ mod tests {
 
     #[test]
     fn count_nodes_4() {
-        let ast = scan_and_parse("fun myFunc(a, b) { var myVar = a; return a + 42;}");
+        let ast = scan_and_parse(
+            "fun myFunc(a, b) {
+                var myVar = a;
+                return a + 42;
+            }",
+        );
         let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 4);
@@ -95,7 +100,24 @@ mod tests {
 
     #[test]
     fn optimize_1() {
-        let ast = scan_and_parse("var myVar = 42 + 4 * 2;");
+        let ast = scan_and_parse("var myVar = 42 + 1 * 1 + 4 * 2;");
+        ast.iter().for_each(|stmt| println!("Before: {}", stmt));
+        let optimized = Optimizer::optimize(ast);
+        assert_eq!(Optimizer::count_nodes(&optimized), 1);
+    }
+
+    #[test]
+    fn optimize_2() {
+        let ast = scan_and_parse("var myVar = 42 + 4 * 2 - 40 / (2 * 5);");
+        ast.iter().for_each(|stmt| println!("Before: {}", stmt));
+        let optimized = Optimizer::optimize(ast);
+        assert_eq!(Optimizer::count_nodes(&optimized), 1);
+    }
+
+    #[test]
+    fn optimize_3() {
+        let ast =
+            scan_and_parse("obj.myFunc(2 * 5, 42 + 3 * 6, test.method(10 + 3 * 10 + 20 / 2));");
         ast.iter().for_each(|stmt| println!("Before: {}", stmt));
         let optimized = Optimizer::optimize(ast);
         optimized

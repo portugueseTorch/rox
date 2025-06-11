@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Vec<Stmt<'a>> {
         let mut statements = vec![];
         while !self.is_at_end() {
-            let stmt = self.parse_statement(false);
+            let stmt = self.parse_statement(true);
             statements.push(stmt);
         }
 
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
             TokenType::If => self.parse_if(),
             TokenType::While => self.parse_while(),
             TokenType::For => self.parse_for(),
-            TokenType::Var => self.parse_var_decl(),
+            TokenType::Var => self.parse_var_decl(expect_semicolon),
             TokenType::Return => self.parse_return(),
             TokenType::Fun => self.parse_func_decl(),
             TokenType::Class => self.parse_class_decl(),
@@ -195,7 +195,7 @@ impl<'a> Parser<'a> {
         Stmt::Return(ReturnStmt { value })
     }
 
-    fn parse_var_decl(&mut self) -> Stmt<'a> {
+    fn parse_var_decl(&mut self, expect_semicolon: bool) -> Stmt<'a> {
         self.next();
 
         let var_name = self.next().clone();
@@ -216,8 +216,7 @@ impl<'a> Parser<'a> {
         // --- parse initializer, if any
         let mut initializer = None;
         if self.matches(TokenType::Equal) {
-            initializer = Some(self.parse_expression(false));
-            self.expect(TokenType::Semicolon);
+            initializer = Some(self.parse_expression(expect_semicolon));
         }
 
         Stmt::VarDecl(VarDeclStatement {
@@ -426,12 +425,12 @@ impl<'a> Parser<'a> {
             };
 
             // --- parse postfix expression, if appropriate
-            if let Some((lbp, _)) = postfix_binding_power(op_type) {
+            if let Some((lbp, rbp)) = postfix_binding_power(op_type) {
                 if lbp < bp {
                     break;
                 }
 
-                lhs = self.parse_postfix_expression(lbp, lhs, op.clone());
+                lhs = self.parse_postfix_expression(rbp, lhs, op.clone());
             }
 
             // --- parse infix expression, if appropriate
@@ -460,7 +459,7 @@ impl<'a> Parser<'a> {
                 let rhs = self.parse_expr(bp);
 
                 ExprNode::new(
-                    op.clone(),
+                    rhs.token.clone(),
                     Expr::PropertyAccess(PropertyAccessExpr {
                         object: Box::new(lhs),
                         property: rhs.token,
@@ -655,10 +654,10 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn postfix_binding_power(token_type: TokenType) -> Option<(usize, ())> {
+fn postfix_binding_power(token_type: TokenType) -> Option<(usize, usize)> {
     let res = match token_type {
-        TokenType::LeftParen => (41, ()),
-        TokenType::Dot => (51, ()),
+        TokenType::LeftParen => (41, 42),
+        TokenType::Dot => (51, 52),
         _ => return None,
     };
 

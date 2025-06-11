@@ -7,11 +7,14 @@ impl Optimizer {
         let initial_node_count = Optimizer::count_nodes(&ast);
         println!("Optimization started at {} nodes", initial_node_count);
 
-        // let optimized_stmts = vec![];
-        // for stmt in ast {
-        //     optimized_stmts.push(stmt.optimize());
-        // }
-        unimplemented!();
+        let mut optimized_stmts = vec![];
+        for stmt in ast {
+            optimized_stmts.push(stmt.optimize());
+        }
+
+        let final_node_count = Optimizer::count_nodes(&optimized_stmts);
+        println!("Optimization ended at {} nodes", final_node_count);
+        optimized_stmts
     }
 
     pub fn count_nodes(ast: &Vec<Stmt>) -> usize {
@@ -33,12 +36,16 @@ mod tests {
         let tokens = scanner.scan().unwrap();
 
         let mut parser = Parser::new(tokens);
-        parser.parse()
+        let ast = parser.parse();
+        if parser.has_errors() {
+            parser.log_errors();
+        }
+        ast
     }
 
     #[test]
     fn count_nodes_1() {
-        let ast = scan_and_parse("2 + 3");
+        let ast = scan_and_parse("2 + 3;");
         let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 3);
@@ -46,7 +53,7 @@ mod tests {
 
     #[test]
     fn count_nodes_2() {
-        let ast = scan_and_parse("2 + 3 * 42");
+        let ast = scan_and_parse("2 + 3 * 42;");
         let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 5);
@@ -84,5 +91,15 @@ mod tests {
         let node_count = Optimizer::count_nodes(&ast);
 
         assert_eq!(node_count, 11);
+    }
+
+    #[test]
+    fn optimize_1() {
+        let ast = scan_and_parse("var myVar = 42 + 4 * 2;");
+        ast.iter().for_each(|stmt| println!("Before: {}", stmt));
+        let optimized = Optimizer::optimize(ast);
+        optimized
+            .iter()
+            .for_each(|stmt| println!("After: {}", stmt));
     }
 }

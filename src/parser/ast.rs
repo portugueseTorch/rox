@@ -2,14 +2,13 @@ use std::fmt::Display;
 
 use itertools::Itertools;
 
-use crate::scanner::token::{Token, TokenType};
+use crate::scanner::token::Token;
 
-use super::expressions::{
-    AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value,
-};
+use super::expressions::{AssignmentExpr, CallExpr, Expr, PropertyAccessExpr, UnaryExpr};
 
 pub trait AstNode {
     fn count_nodes(&self) -> usize;
+    fn optimize(&self) -> Self;
 }
 
 #[derive(Clone)]
@@ -25,6 +24,12 @@ impl<'a> ExprNode<'a> {
 
     pub fn log(&self) {
         println!("{}", self.node);
+    }
+}
+
+impl<'a> Display for ExprNode<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.node)
     }
 }
 
@@ -50,207 +55,61 @@ impl<'a> AstNode for ExprNode<'a> {
 
         nodes_in_subtrees + 1
     }
-}
 
-impl<'a> Display for ExprNode<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.node)
-    }
-}
+    fn optimize(&self) -> Self {
+        let expr = match &self.node {
+            Expr::BinOp(binop) => {
+                let optimized_left = binop.left.optimize();
+                let optimized_right = binop.right.optimize();
 
-#[derive(Clone)]
-pub enum Expr<'a> {
-    // --- expressions
-    /// Literals, containing
-    ///   - string literals as a slice into the source code
-    ///   - number as an i32
-    ///   - booleans
-    ///   - nil
-    ///   ```
-    ///   "Hello, World!"
-    ///   1337
-    ///   true
-    ///   nil
-    ///   ```
-    Constant(Value),
-
-    /// Variable identifier, containing the name of the identifier as a slice into the source code
-    /// ```
-    /// myVar
-    /// ```
-    Var(&'a str),
-
-    /// Binary operations
-    /// ```
-    /// a + b * 42
-    /// // --- Resulting tree:
-    ///
-    ///           +
-    ///          / \
-    ///         a   *
-    ///            / \
-    ///           b  42
-    /// ```
-    BinOp(BinaryExpr<'a>),
-
-    /// Unary operation:
-    ///   - first element of the typle holds the token for the unary operator
-    ///   - second element of the tuple is the operand
-    ///  ```
-    ///  -1337
-    ///  !boolean
-    ///  ```
-    Unary(UnaryExpr<'a>),
-
-    /// Asssignment operation:
-    ///   - first element of the tuple holds the token for the name of the variable
-    ///   - second element of the tuple holds the node to be assigned
-    /// ```
-    /// var myVar = a + b * 42;
-    /// ```
-    Assignment(AssignmentExpr<'a>),
-
-    /// Grouping around an expression
-    /// ```
-    /// (a + b)
-    /// ```
-    Grouping(Box<ExprNode<'a>>),
-
-    /// Call expression:
-    ///   - first element of the tuple holds the node for the calle
-    ///   - second element of the tuple holds a vector of args
-    /// ```
-    /// method(42)
-    /// ```
-    Call(CallExpr<'a>),
-
-    /// Property access expression:
-    ///   - first element of the tuple holds the node for the calle
-    ///   - second element of the tuple holds a vector of args
-    /// ```
-    /// obj.property
-    /// ```
-    PropertyAccess(PropertyAccessExpr<'a>),
-
-    /// Represents an error
-    Error,
-}
-
-impl<'a> Expr<'a> {
-    fn fold_constants(c1: Value, c2: Value, op: TokenType) -> Expr<'a> {
-        let computed_value = Value::compute(c1, c2, op);
-
-        match computed_value {
-            Ok(v) => Expr::Constant(v),
-            Err(_) => Expr::Error,
-        }
-    }
-
-    pub fn is_error(&self) -> bool {
-        if matches!(self, Expr::Error) {
-            return true;
-        }
-
-        false
-    }
-
-    pub fn to_yaml(&self, level: usize) -> String {
-        let spaces = " ".repeat(level * 2);
-        let next_level = level + 1;
-        let indent = " ".repeat(next_level * 2);
-
-        match self {
-            Expr::Error => format!("{}ERROR", spaces),
-
-            Expr::Var(var) => format!("{}Var: {}", spaces, var),
-
-            Expr::Call(call) => {
-                let mut s = format!("{}Call:\n", spaces);
-                s += &format!(
-                    "{}Calee:\n{}",
-                    indent,
-                    call.calee.node.to_yaml(next_level + 1)
-                );
-                if call.args.is_empty() {
-                    s += &format!("\n{}Args: []", indent);
-                } else {
-                    s += &format!("\n{}Args: [", indent);
-                    for arg in call.args.iter() {
-                        s += &format!("\n{}", arg.node.to_yaml(next_level + 1).trim_end());
+                // --- if both the subtrees evaluated to constants, fold them
+                match (optimized_left.node, optimized_right.node) {
+                    (Expr::Constant(c1), Expr::Constant(c2)) => {
+                        Expr::fold_constants(c1, c2, binop.op)
                     }
-                    s += &format!("\n{}]", indent);
+                    _ => self.node.clone(),
                 }
-                s.trim_end().to_string()
             }
-
-            Expr::Constant(val) => {
-                let val_as_string = match val {
-                    Value::StringLiteral(l) => format!("{}", l),
-                    Value::Nil => "Nil".to_string(),
-                    Value::Bool(b) => format!("{}", b),
-                    Value::Number(n) => format!("{}", n),
-                };
-                format!("{}Constant: {}", spaces, val_as_string)
-            }
-
             Expr::Unary(unary) => {
-                let mut s = format!("{}Unary:\n", spaces);
-                s += &format!("{}Op: '{}'\n", indent, unary.op);
-                s += &format!(
-                    "{}Expr:\n{}",
-                    indent,
-                    unary.operand.node.to_yaml(next_level + 1)
-                );
-                s
-            }
+                let optimized_operand = unary.operand.optimize();
 
-            Expr::Grouping(expr) => {
-                format!("{}Group:\n{}", spaces, expr.node.to_yaml(next_level))
+                Expr::Unary(UnaryExpr {
+                    op: unary.op,
+                    operand: Box::new(optimized_operand),
+                })
             }
+            Expr::Assignment(assignment) => {
+                let optimized_expr = assignment.expr.optimize();
 
-            Expr::Assignment(a) => {
-                let mut s = format!("{}Assignment:\n", spaces);
-                s += &format!(
-                    "{}Name: {}\n",
-                    indent,
-                    a.name.lexeme.as_deref().unwrap_or("")
-                );
-                s += &format!("{}Val:\n{}", indent, a.expr.node.to_yaml(next_level + 1));
-                s
+                Expr::Assignment(AssignmentExpr {
+                    name: assignment.name.clone(),
+                    expr: Box::new(optimized_expr),
+                })
             }
+            Expr::Call(call) => {
+                let optimized_args = call.args.iter().map(ExprNode::optimize).collect_vec();
+                let optimized_calee = call.calee.optimize();
 
-            Expr::BinOp(bin) => {
-                let mut s = format!("{}BinOp:\n", spaces);
-                s += &format!("{}Op: '{}'", indent, bin.op);
-                s += &format!(
-                    "\n{}Lhs:\n{}",
-                    indent,
-                    bin.left.node.to_yaml(next_level + 1)
-                );
-                s += &format!(
-                    "\n{}Rhs:\n{}",
-                    indent,
-                    bin.right.node.to_yaml(next_level + 1)
-                );
-                s
+                Expr::Call(CallExpr {
+                    calee: Box::new(optimized_calee),
+                    args: optimized_args,
+                })
             }
-
             Expr::PropertyAccess(prop) => {
-                let mut s = format!("{}PropAccess:\n", spaces);
-                s += &format!(
-                    "{}Obj:\n{}",
-                    indent,
-                    prop.object.node.to_yaml(next_level + 1)
-                );
-                s += &format!("\n{}Prop: {}", indent, prop.property.lexeme.unwrap());
-                s
-            }
-        }
-    }
-}
+                let optimized_object = prop.object.optimize();
 
-impl<'a> Display for Expr<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n{}\n", self.to_yaml(0))
+                Expr::PropertyAccess(PropertyAccessExpr {
+                    object: Box::new(optimized_object),
+                    property: prop.property.clone(),
+                })
+            }
+            Expr::Grouping(group) => Expr::Grouping(Box::new(group.optimize())),
+            Expr::Error | Expr::Var(_) | Expr::Constant(_) => self.node.clone(),
+        };
+
+        Self {
+            node: expr,
+            token: self.token.clone(),
+        }
     }
 }

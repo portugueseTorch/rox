@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use itertools::Itertools;
+
 use crate::scanner::token::Token;
 
 use super::ast::{AstNode, ExprNode};
@@ -156,6 +158,55 @@ impl<'a> AstNode for Stmt<'a> {
                     .sum::<usize>();
                 condition + if_body + else_body
             }
+        }
+    }
+
+    fn optimize(&self) -> Self {
+        match self {
+            Stmt::Expression(expr) => Stmt::Expression(expr.optimize()),
+            Stmt::If(payload) => Stmt::If(IfStmt {
+                condition: payload.condition.optimize(),
+                if_body: payload.if_body.iter().map(Stmt::optimize).collect_vec(),
+                else_body: payload.else_body.iter().map(Stmt::optimize).collect_vec(),
+            }),
+            Stmt::While(payload) => Stmt::While(WhileStmt {
+                condition: payload.condition.optimize(),
+                body: payload.body.iter().map(Stmt::optimize).collect_vec(),
+            }),
+            Stmt::For(payload) => Stmt::For(ForStmt {
+                initializer: payload
+                    .initializer
+                    .as_ref()
+                    .map(|init| Box::new(init.optimize())),
+                condition: payload.condition.as_ref().map(|cond| cond.optimize()),
+                increment: payload.increment.as_ref().map(|incr| incr.optimize()),
+                body: payload.body.iter().map(Stmt::optimize).collect_vec(),
+            }),
+            Stmt::VarDecl(var) => Stmt::VarDecl(VarDeclStatement {
+                var_name: var.var_name.clone(),
+                initializer: var.initializer.as_ref().map(|init| init.optimize()),
+            }),
+            Stmt::Return(ret) => Stmt::Return(ReturnStmt {
+                value: ret.value.as_ref().map(|val| val.optimize()),
+            }),
+            Stmt::FuncDecl(func) => Stmt::FuncDecl(FuncDeclStatement {
+                name: func.name.clone(),
+                parameters: func.parameters.clone(),
+                body: func.body.iter().map(Stmt::optimize).collect_vec(),
+            }),
+            Stmt::ClassDecl(class) => Stmt::ClassDecl(ClassDeclStatement {
+                name: class.name.clone(),
+                methods: class
+                    .methods
+                    .iter()
+                    .map(|method| FuncDeclStatement {
+                        name: method.name.clone(),
+                        parameters: method.parameters.clone(),
+                        body: method.body.iter().map(Stmt::optimize).collect_vec(),
+                    })
+                    .collect_vec(),
+            }),
+            Stmt::Error => self.clone(),
         }
     }
 }
@@ -332,11 +383,8 @@ impl<'a> Display for Stmt<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{ast::Expr, parser::Parser, statements::Stmt},
-        scanner::{
-            scanner::Scanner,
-            token::{Token, TokenType},
-        },
+        parser::{parser::Parser, statements::Stmt},
+        scanner::{scanner::Scanner, token::Token},
     };
 
     fn scan<'a>(src: &'a str) -> Vec<Token<'a>> {
@@ -497,7 +545,6 @@ mod tests {
             scan("class Nice {fun methodOne() {} fun methodTwo(name, age) { return name + age; }}");
         let mut parser = Parser::new(tokens);
         let statements = parser.parse();
-        statements.iter().for_each(|f| println!("{}", f));
 
         assert!(!parser.has_errors());
         assert!(statements.len() == 1);

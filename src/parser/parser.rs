@@ -4,8 +4,10 @@ use crate::{
 };
 
 use super::{
-    ast::{Expr, ExprNode},
-    expressions::{AssignmentExpr, BinaryExpr, CallExpr, PropertyAccessExpr, UnaryExpr, Value},
+    ast::ExprNode,
+    expressions::{
+        AssignmentExpr, BinaryExpr, CallExpr, Expr, PropertyAccessExpr, UnaryExpr, Value,
+    },
     statements::{
         ClassDeclStatement, ForStmt, FuncDeclStatement, IfStmt, ReturnStmt, Stmt, VarDeclStatement,
         WhileStmt,
@@ -69,7 +71,7 @@ impl<'a> Parser<'a> {
             TokenType::If => self.parse_if(),
             TokenType::While => self.parse_while(),
             TokenType::For => self.parse_for(),
-            TokenType::Var => self.parse_var_decl(expect_semicolon),
+            TokenType::Var => self.parse_var_decl(),
             TokenType::Return => self.parse_return(),
             TokenType::Fun => self.parse_func_decl(),
             TokenType::Class => self.parse_class_decl(),
@@ -193,7 +195,7 @@ impl<'a> Parser<'a> {
         Stmt::Return(ReturnStmt { value })
     }
 
-    fn parse_var_decl(&mut self, expect_semicolon: bool) -> Stmt<'a> {
+    fn parse_var_decl(&mut self) -> Stmt<'a> {
         self.next();
 
         let var_name = self.next().clone();
@@ -214,7 +216,8 @@ impl<'a> Parser<'a> {
         // --- parse initializer, if any
         let mut initializer = None;
         if self.matches(TokenType::Equal) {
-            initializer = Some(self.parse_expression(expect_semicolon));
+            initializer = Some(self.parse_expression(false));
+            self.expect(TokenType::Semicolon);
         }
 
         Stmt::VarDecl(VarDeclStatement {
